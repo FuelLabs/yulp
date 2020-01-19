@@ -14,6 +14,7 @@
     ":=": ":=",
     "->": "->",
     ",": ",",
+    codeKeyword: /(?:code)(?:\s)/,
     objectKeyword: /(?:object)(?:\s)/,
     dataKeyword: /(?:data)(?:\s)/,
     bracket: ["{", "}", "(", ")"],
@@ -44,8 +45,8 @@ objectStatement -> CodeDefinition {% function(d) { return d[0]; } %}
   | ObjectDefinition {% function(d) { return d[0]; } %}
   | Comment {% function(d) { return d[0]; } %}
 DataDeclaration -> %dataKeyword _ %StringLiteral _ (%StringLiteral | %HexLiteral)
-CodeDefinition -> "code" _ "{" _ "}" {% function(d) { return d; } %}
-  | "code" _ Block
+CodeDefinition -> %codeKeyword _ "{" _ "}" {% function(d) { return d; } %}
+  | %codeKeyword _ Block
 Comment -> MultiLineComment | SingleLineComment
 MultiLineComment -> %multiComment
 SingleLineComment -> %singleLineComment
