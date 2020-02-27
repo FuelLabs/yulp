@@ -6,7 +6,7 @@ A low-level, highly efficient extension to Yul, an intermediate language for the
 
 ## Features
 - All existing Yul features
-- Structs
+- Memory structs
 - Enums
 - Constants
 - Etheruem Standard ABI Signature Generation

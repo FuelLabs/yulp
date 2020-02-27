@@ -16,14 +16,22 @@ const source = yulp.compile(`
 
     const nick, cool := 0x1
 
-    nick := 0x3
+    const hello := topic"event Cool()"
+
+    nick := sig"function name()"
+
+    what := true
 
     function selectAndVerifyInputDeposit(input, witnessesLength) -> length,
       depositHashID, witnessReference {
-        const insideMethod := nick
+        const insideMethod := mslice(0, 23)
     }
 
-    const hello := nick
+    gh()
+
+    for {} eq(1, false) {} {
+      // hello
+    }
 
     function /* dffds */ nick() {
 
