@@ -4,9 +4,9 @@
   "description": "A low-level highly-efficient language for the Ethereum Virtual Machine.",
   "main": "index.js",
   "scripts": {
-    "start": "npm run build-yul && node example.js",
-    "test": "npm run build-yul && node test.index.js",
-    "build": "nearleyc yulp.ne -o yulp.js",
+    "start": "npm run build && node example.js",
+    "test": "npm run build && node test.index.js",
+    "build": "nearleyc yulplus.ne -o yulplus.js",
     "build-yul": "nearleyc yul.ne -o yul.js"
   },
   "author": "Nick Dodson <nick.dodson@fuel.sh>",

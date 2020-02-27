@@ -1,5 +1,5 @@
 const nearley = require("nearley");
-const Yulp = require('./yulp');
+const Yulp = require('./yulplus');
 const Yul = require('./yul');
 const print = v => v
   .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
@@ -9,7 +9,7 @@ module.exports = {
   nearley,
   Yulp,
   compile: source => {
-    const parser = new nearley.Parser(Yul);
+    const parser = new nearley.Parser(Yulp);
     return parser.feed(source);
   },
   print,
