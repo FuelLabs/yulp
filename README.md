@@ -10,7 +10,7 @@ A low-level, highly efficient extension to Yul, an intermediate language for the
 - Enums
 - Constants
 - Etheruem Standard ABI Signature Generation
-- Memory slice
+- Memory slice (mslice)
 - Booleans
 
 ## Install

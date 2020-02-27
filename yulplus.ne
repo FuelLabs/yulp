@@ -21,9 +21,9 @@
     dataKeyword: /(?:data)(?:\s)/,
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")"],
-    keyword: ['code', 'let', "for", "function", "const",
+    keyword: ['code', 'let', "for", "function", "const", "enum",
       "if", "else", "break", "continue", "default", "switch", "case"],
-    Identifier: /[\w]+/,
+    Identifier: /[\w.]+/,
   });
 
   function stringToSig(str) {
@@ -38,16 +38,28 @@
     }
   }
 
-  function flatDeep(arr, d = 1) {
-     return d > 0 ? arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flatDeep(val, d - 1) : val), [])
-                  : arr.slice();
-  };
+  function flatDeep(input) {
+    const stack = [...input];
+    const res = [];
+    while(stack.length) {
+      // pop value from stack
+      const next = stack.pop();
+      if(Array.isArray(next)) {
+        // push back array items, won't modify the original input
+        stack.push(...next);
+      } else {
+        res.push(next);
+      }
+    }
+    // reverse to restore input order
+    return res.reverse();
+  }
 
   function mapDeep(arr, f) {
     return Array.isArray(arr) ? arr.map(v => mapDeep(v, f)) : f(arr);
   }
 
-  function _filter(arr, kind, stopKind = null) {
+  function _filter(arr, kind, stopKind = 'Nothing') {
     var isStopKind = false;
 
     return flatDeep(arr, 10000000)
@@ -102,8 +114,8 @@
   }`;
   const sliceObject = {
     value: sliceMethod,
-    type: 'MethodInjection',
     text: sliceMethod,
+    type: 'MethodInjection',
     toString: () => sliceMethod,
   };
 %}
@@ -119,16 +131,36 @@ objectStatement -> CodeDefinition {% function(d) { return d[0]; } %}
 DataDeclaration -> %dataKeyword _ %StringLiteral _ (%StringLiteral | %HexLiteral)
 CodeDefinition -> %codeKeyword _ Block {%
   function (d) {
+    // Inject slice method
     const usesSlice = _filter(d, 'FunctionCallIdentifier')
       .filter(v => v.value === 'mslice')
       .length > 0;
-    d[2].splice(1, 0, sliceObject)
+    d[2].splice(1, 0, sliceObject);
 
     return d;
   }
 %}
 Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
-  return d;
+  const enums = _filter(d, 'Enum')
+    .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+
+  return mapDeep(d, v => {
+    // We have now set within this block context, this enum to Used
+    if (v.type === 'Enum') {
+      v.type = 'UsedEnum';
+    }
+
+    // Replace enums
+    if (v.type === 'Identifier'
+      && typeof enums[v.value] !== "undefined") {
+
+      // Replace out enums
+      v.value = enums[v.value];
+      v.text = enums[v.value];
+    }
+
+    return v;
+  });
 } %}
   | "{" _ "}" {% extractArray %}
 Switch -> "switch" _ Expression _ SwitchDefinitions
@@ -157,6 +189,28 @@ Boolean -> %boolean {% function(d) {
     return { type: 'HexNumber', value: '0x00', text: '0x00' };
   }
 } %}
+EnumDeclaration -> "enum" _ %Identifier _ "(" _ IdentifierList _ ")" {%
+  function (d) {
+    const ids = _filter(d, 'Identifier');
+    const name = ids[0];
+    const markers = ids.slice(1);
+    const dataMap = markers
+      .reduce((acc, v, i) => Object.assign(acc, {
+        [name + '.' + v]: i,
+      }), {});
+
+    return {
+      type: 'Enum',
+      value: '',
+      text: '',
+      ids,
+      name,
+      markers,
+      toString: () => '',
+      dataMap,
+    };
+  }
+%}
 ForLoop -> "for" _ "{" (_ Statement):* _ "}" _ Expression _ "{" (_ Statement):* _ "}" _ Block
 BreakContinue -> "break" | "continue"
 SwitchDefinition -> Case | Default
@@ -167,6 +221,7 @@ Statement -> FunctionDefinition
   | ForLoop
   | VariableDeclaration
   | ConstantDeclaration
+  | EnumDeclaration
   | IfStatement
   | Assignment
   | Switch

@@ -14,20 +14,33 @@ const source = yulp.compile(`
     }
     */
 
+    enum Colors (
+      Red,
+      Blue,
+      Green
+    )
+
     const nick, cool := 0x1
 
     const hello := topic"event Cool()"
 
     nick := sig"function name()"
 
-    what := true
+    what := Colors.Blue
 
     function selectAndVerifyInputDeposit(input, witnessesLength) -> length,
       depositHashID, witnessReference {
         const insideMethod := mslice(0, 23)
+
+        enum Enclosed (
+          Cool,
+          Beans
+        )
+
+        let dfsfds := Enclosed.Beans
     }
 
-    gh()
+    gh(Enclosed.Beans)
 
     for {} eq(1, false) {} {
       // hello

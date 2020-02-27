@@ -25,9 +25,9 @@ function id(x) { return x[0]; }
     dataKeyword: /(?:data)(?:\s)/,
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")"],
-    keyword: ['code', 'let', "for", "function", "const",
+    keyword: ['code', 'let', "for", "function", "const", "enum",
       "if", "else", "break", "continue", "default", "switch", "case"],
-    Identifier: /[\w]+/,
+    Identifier: /[\w.]+/,
   });
 
   function stringToSig(str) {
@@ -42,16 +42,28 @@ function id(x) { return x[0]; }
     }
   }
 
-  function flatDeep(arr, d = 1) {
-     return d > 0 ? arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flatDeep(val, d - 1) : val), [])
-                  : arr.slice();
-  };
+  function flatDeep(input) {
+    const stack = [...input];
+    const res = [];
+    while(stack.length) {
+      // pop value from stack
+      const next = stack.pop();
+      if(Array.isArray(next)) {
+        // push back array items, won't modify the original input
+        stack.push(...next);
+      } else {
+        res.push(next);
+      }
+    }
+    // reverse to restore input order
+    return res.reverse();
+  }
 
   function mapDeep(arr, f) {
     return Array.isArray(arr) ? arr.map(v => mapDeep(v, f)) : f(arr);
   }
 
-  function _filter(arr, kind, stopKind = null) {
+  function _filter(arr, kind, stopKind = 'Nothing') {
     var isStopKind = false;
 
     return flatDeep(arr, 10000000)
@@ -106,8 +118,8 @@ function id(x) { return x[0]; }
   }`;
   const sliceObject = {
     value: sliceMethod,
-    type: 'MethodInjection',
     text: sliceMethod,
+    type: 'MethodInjection',
     toString: () => sliceMethod,
   };
 var grammar = {
@@ -131,10 +143,11 @@ var grammar = {
     {"name": "DataDeclaration", "symbols": [(lexer.has("dataKeyword") ? {type: "dataKeyword"} : dataKeyword), "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "_", "DataDeclaration$subexpression$1"]},
     {"name": "CodeDefinition", "symbols": [(lexer.has("codeKeyword") ? {type: "codeKeyword"} : codeKeyword), "_", "Block"], "postprocess": 
         function (d) {
+          // Inject slice method
           const usesSlice = _filter(d, 'FunctionCallIdentifier')
             .filter(v => v.value === 'mslice')
             .length > 0;
-          d[2].splice(1, 0, sliceObject)
+          d[2].splice(1, 0, sliceObject);
         
           return d;
         }
@@ -143,7 +156,26 @@ var grammar = {
     {"name": "Block$ebnf$1$subexpression$1", "symbols": ["_", "Statement"]},
     {"name": "Block$ebnf$1", "symbols": ["Block$ebnf$1", "Block$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "Block", "symbols": [{"literal":"{"}, "_", "Statement", "Block$ebnf$1", "_", {"literal":"}"}], "postprocess":  function(d) {
-          return d;
+          const enums = _filter(d, 'Enum')
+            .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+        
+          return mapDeep(d, v => {
+            // We have now set within this block context, this enum to Used
+            if (v.type === 'Enum') {
+              v.type = 'UsedEnum';
+            }
+        
+            // Replace enums
+            if (v.type === 'Identifier'
+              && typeof enums[v.value] !== "undefined") {
+        
+              // Replace out enums
+              v.value = enums[v.value];
+              v.text = enums[v.value];
+            }
+        
+            return v;
+          });
         } },
     {"name": "Block", "symbols": [{"literal":"{"}, "_", {"literal":"}"}], "postprocess": extractArray},
     {"name": "Switch", "symbols": [{"literal":"switch"}, "_", "Expression", "_", "SwitchDefinitions"]},
@@ -175,6 +207,28 @@ var grammar = {
             return { type: 'HexNumber', value: '0x00', text: '0x00' };
           }
         } },
+    {"name": "EnumDeclaration", "symbols": [{"literal":"enum"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", "IdentifierList", "_", {"literal":")"}], "postprocess": 
+        function (d) {
+          const ids = _filter(d, 'Identifier');
+          const name = ids[0];
+          const markers = ids.slice(1);
+          const dataMap = markers
+            .reduce((acc, v, i) => Object.assign(acc, {
+              [name + '.' + v]: i,
+            }), {});
+        
+          return {
+            type: 'Enum',
+            value: '',
+            text: '',
+            ids,
+            name,
+            markers,
+            toString: () => '',
+            dataMap,
+          };
+        }
+        },
     {"name": "ForLoop$ebnf$1", "symbols": []},
     {"name": "ForLoop$ebnf$1$subexpression$1", "symbols": ["_", "Statement"]},
     {"name": "ForLoop$ebnf$1", "symbols": ["ForLoop$ebnf$1", "ForLoop$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -193,6 +247,7 @@ var grammar = {
     {"name": "Statement", "symbols": ["ForLoop"]},
     {"name": "Statement", "symbols": ["VariableDeclaration"]},
     {"name": "Statement", "symbols": ["ConstantDeclaration"]},
+    {"name": "Statement", "symbols": ["EnumDeclaration"]},
     {"name": "Statement", "symbols": ["IfStatement"]},
     {"name": "Statement", "symbols": ["Assignment"]},
     {"name": "Statement", "symbols": ["Switch"]},
