@@ -108,6 +108,8 @@ function id(x) { return x[0]; }
 
   function functionCall(d) {
     d[0].type = 'FunctionCallIdentifier';
+    d[0].name = d[0].value;
+
     return d;
   }
 
@@ -161,9 +163,9 @@ var grammar = {
         function (d) {
           // Inject slice method
           const usesSlice = _filter(d, 'FunctionCallIdentifier')
-            .filter(v => v.value === 'mslice')
+            .filter(v => v.value === 'mslice' || v._includeMarker === 'mslice')
             .length > 0;
-          d[2].splice(1, 0, sliceObject);
+          d[2].splice(2, 0, sliceObject);
         
           return d;
         }
@@ -179,8 +181,9 @@ var grammar = {
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
           const mstructs = _filter(d, 'MemoryStructDeclaration')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+          const methodToInclude = {};
         
-          return mapDeep(d, v => {
+          let _map = mapDeep(d, v => {
             // We have now set within this block context, this enum to Used
             if (v.type === 'Enum') {
               v.type = 'UsedEnum';
@@ -189,6 +192,11 @@ var grammar = {
             // Set constants in context to used
             if (v.type === 'Constant') {
               v.type = 'UsedConstant';
+            }
+        
+            // Used now..
+            if (v.type === 'MemoryStructDeclaration') {
+              v.type = 'UsedMemoryStructDeclaration';
             }
         
             // Check for constant re-assignments
@@ -210,9 +218,39 @@ var grammar = {
               v.text = enums[v.value];
             }
         
+            if (v.type === 'FunctionCallIdentifier'
+              && typeof mstructs[v.name] !== 'undefined') {
+        
+              methodToInclude[v.name] = "\n" + mstructs[v.name].method + "\n";
+            }
+        
             // Return object
             return v;
           });
+        
+          // inject mslice if any mstruct method used.
+          if (Object.keys(methodToInclude).length > 0) {
+            _map.splice(2, 0, {
+              type: 'FunctionCallIdentifier',
+              value: '',
+              text: '',
+              _includeMarker: 'mslice',
+              toString: () => '',
+            });
+          }
+        
+          // add methods to include
+          _map.splice(2, 0, Object.keys(methodToInclude)
+              .map(key => ({
+            type: 'InjectedMstructMethod',
+            value: methodToInclude[key],
+            text: methodToInclude[key],
+            toString: () => methodToInclude[key],
+          })));
+        
+          console.log(_map);
+        
+          return _map;
         } },
     {"name": "Block", "symbols": [{"literal":"{"}, "_", {"literal":"}"}], "postprocess": extractArray},
     {"name": "Switch", "symbols": [{"literal":"switch"}, "_", "Expression", "_", "SwitchDefinitions"]},
@@ -342,22 +380,26 @@ var grammar = {
           const name = d[2].value;
           const properties = _filter(d[6], 'MemoryStructIdentifier');
           let methodList = properties.map(v => name + '.' + v.name);
-          let methods = properties.reduce((acc, v, i) => Object.assign(acc, {
+          let dataMap = properties.reduce((acc, v, i) => Object.assign(acc, {
             [name + '.' + v.name]: {
               size: v.value.value,
               offset: addValues(methodList.slice(0, i)
                 .map(name => acc[name].size)),
               method: `function ${name + '.' + v.name}(pos) -> res {
-                res := mslice(${addValues(methodList.slice(0, i)
-                  .map(name => acc[name].size))}, ${v.value.value})
+                res := mslice(${addValues(['pos'].concat(methodList.slice(0, i)
+                  .map(name => acc[name].size)))}, ${v.value.value})
               }`,
             },
-            /* [name + '.' + v.name + '.position']: '',
+            [name + '.' + v.name + '.position']: {
+              method: `function ${name + '.' + v.name + '.position'}(pos) -> _offset {
+                _offset := ${addValues(['pos'].concat(methodList.slice(0, i)
+                  .map(name => acc[name].size)))}
+              }`,
+            },
             [name + '.' + v.name + '.offset']: {
-              offsetMath: addValues(methodList.slice(0, i).map(name => {
-        
-              })),
-              method: `function ${name + '.' + v.name + '.offset'}() -> _offset {
+              method: `function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
+                _offset := ${addValues(['pos', v.value.value].concat(methodList.slice(0, i)
+                  .map(name => acc[name].size)))}
               }`,
             },
             [name + '.' + v.name + '.index']: {
@@ -370,16 +412,15 @@ var grammar = {
                 _size := ${v.value.value}
               }`,
             },
-            */
           }), {});
-          methods[name + '.length'] = '';
+          dataMap[name + '.length'] = '';
         
-          console.log(methodList, methods);
+          console.log(methodList, dataMap);
         
           return {
             type: 'MemoryStructDeclaration',
             name,
-            properties,
+            dataMap,
             value: '',
             text: '',
             toString: () => '',

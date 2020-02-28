@@ -5,6 +5,14 @@ const source = yulp.compile(`
   code {
     mslice(3, 3)
   }
+
+  code {
+    mstruct K (cool: 2)
+
+    K.cool(333)
+
+    K.cool.size()
+  }
   /*
   code cooldfskjkdsfjk
   @!#$#@%%$
@@ -24,15 +32,11 @@ const source = yulp.compile(`
       another: 14
     )
 
-    function Nick.cool(pos) -> res {
-      res := mslice(pos, 11)
-    }
+    Nick.cool(12)
 
-    function Nick.cool2(pos) -> res {
-      res := mslice(add(pos, add(11, 0)), 0x1)
-    }
+    Nick.cool2.offset(3)
 
-    Nick.cool2(3)
+    Nick.another(800)
 
     enum Colors (
       Red,
@@ -52,7 +56,12 @@ const source = yulp.compile(`
       depositHashID, witnessReference {
         const insideMethod := mslice(0, 23)
 
-        const hello3 := 2
+        mstruct Jonny (
+          cool: 32,
+          yes: 11
+        )
+
+        const hello3 := Jonny.yes(122)
 
         enum Enclosed (
           Cool,
