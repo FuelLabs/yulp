@@ -7,6 +7,9 @@ function id(x) { return x[0]; }
   const { utils } = require('ethers');
   function id(x) { return x[0]; }
 
+  const print = v => v
+    .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
+
   let lexer = moo.compile({
     space: { match: /\s+/, lineBreaks: true },
     singleLineComment: /\/\/.*?$/,
@@ -158,11 +161,27 @@ var grammar = {
     {"name": "Block", "symbols": [{"literal":"{"}, "_", "Statement", "Block$ebnf$1", "_", {"literal":"}"}], "postprocess":  function(d) {
           const enums = _filter(d, 'Enum')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+          const constants = _filter(d, 'Constant')
+            .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
         
           return mapDeep(d, v => {
             // We have now set within this block context, this enum to Used
             if (v.type === 'Enum') {
               v.type = 'UsedEnum';
+            }
+        
+            if (v.type === 'Constant') {
+              v.type = 'UsedConstant';
+            }
+        
+            // Check for constant re-assignments
+            if (v.type === 'Assignment') {
+              for (var i = 0; i < v._identifiers.length; i++) {
+        
+                if (typeof constants[v._identifiers[i].value] !== 'undefined') {
+                  throw new Error(`Constant re-assignment '${v._identifiers[i].value}' to '${print(v._value)}' at line ${v.line}`)
+                }
+              }
             }
         
             // Replace enums
@@ -277,11 +296,11 @@ var grammar = {
           // Change const to let
           d[0].value = 'let';
           d[0].text = 'let';
-          d[0].type = '__constant';
+          d[0].type = 'Constant';
           d[0].__itendifiers = _filter(d, 'Identifier', 'equate')
             .map(v => v.value);
-          d[0].__value = _filterKind(d, 'ExpressionValue');
-          d[0].__map = d[0].__itendifiers.reduce((acc, v) => Object.assign(acc, {
+          d[0].__value = d[6];
+          d[0].dataMap = d[0].__itendifiers.reduce((acc, v) => Object.assign(acc, {
             [v]: d[0].__value,
           }), {});
           d.__constant = true;
@@ -289,7 +308,14 @@ var grammar = {
           return d;
         }
         },
-    {"name": "Assignment", "symbols": ["IdentifierList", "_", {"literal":":="}, "_", "Expression"]},
+    {"name": "Assignment", "symbols": ["IdentifierList", "_", {"literal":":="}, "_", "Expression"], "postprocess": 
+        function (d) {
+          d[0][0]._identifiers = _filter(d[0], 'Identifier');
+          d[0][0].type = 'Assignment';
+          d[0][0]._value = d[4];
+          return d;
+        }
+        },
     {"name": "FunctionDefinition", "symbols": [{"literal":"function"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", "IdentifierList", "_", {"literal":")"}, "_", {"literal":"->"}, "_", "IdentifierList", "_", "Block"]},
     {"name": "FunctionDefinition", "symbols": [{"literal":"function"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", {"literal":")"}, "_", {"literal":"->"}, "_", "IdentifierList", "_", "Block"]},
     {"name": "FunctionDefinition", "symbols": [{"literal":"function"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", {"literal":")"}, "_", {"literal":"->"}, "_", {"literal":"("}, "_", {"literal":")"}, "_", "Block"]},

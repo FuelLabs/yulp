@@ -1,6 +1,10 @@
 const yulp = require('./index');
 const source = yulp.compile(`
   // hello
+
+  code {
+    mslice(3, 3)
+  }
   /*
   code cooldfskjkdsfjk
   @!#$#@%%$
@@ -24,13 +28,17 @@ const source = yulp.compile(`
 
     const hello := topic"event Cool()"
 
-    nick := sig"function name()"
+    nick2, cool2 := sig"function name()"
 
     what := Colors.Blue
+
+    hello3 := 1
 
     function selectAndVerifyInputDeposit(input, witnessesLength) -> length,
       depositHashID, witnessReference {
         const insideMethod := mslice(0, 23)
+
+        const hello3 := 2
 
         enum Enclosed (
           Cool,
