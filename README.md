@@ -13,6 +13,10 @@ A low-level, highly efficient extension to Yul, an intermediate language for the
 - Memory slice (mslice)
 - Booleans
 
+## Coming Soon
+- Safe Math
+- Types
+
 ## Install
 
 ```sh

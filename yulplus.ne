@@ -17,14 +17,15 @@
     equate: ":=",
     "->": "->",
     ",": ",",
+    ":": ":",
     SigLiteral: /(?:sig)(?:"|').*(?:"|')/,
     TopicLiteral: /(?:topic)(?:"|').*(?:"|')/,
     codeKeyword: /(?:code)(?:\s)/,
     objectKeyword: /(?:object)(?:\s)/,
     dataKeyword: /(?:data)(?:\s)/,
     boolean: ["true", "false"],
-    bracket: ["{", "}", "(", ")"],
-    keyword: ['code', 'let', "for", "function", "const", "enum",
+    bracket: ["{", "}", "(", ")", '[', ']'],
+    keyword: ['code', 'let', "for", "function", "const", "enum", "mstruct",
       "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
@@ -110,6 +111,18 @@
     return d;
   }
 
+  // add(0, 1)
+  // add(0, add(2, 3))
+  // add(0, add(3, add(4, 2)))
+
+  function addValues(vals) {
+    return vals
+      .map(v => `add(${v.value || v}, `)
+      .concat(['0'])
+      .concat(Array(vals.length).fill(')'))
+      .join('');
+  }
+
   const sliceMethod = `function mslice(position, length) -> result {
       if gt(length, 32) { revert(0, 0) } // protect against overflow
 
@@ -144,9 +157,12 @@ CodeDefinition -> %codeKeyword _ Block {%
   }
 %}
 Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
+  // Scan for enums and constant declarations
   const enums = _filter(d, 'Enum')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
   const constants = _filter(d, 'Constant')
+    .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+  const mstructs = _filter(d, 'MemoryStructDeclaration')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
 
   return mapDeep(d, v => {
@@ -155,6 +171,7 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
       v.type = 'UsedEnum';
     }
 
+    // Set constants in context to used
     if (v.type === 'Constant') {
       v.type = 'UsedConstant';
     }
@@ -178,6 +195,7 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
       v.text = enums[v.value];
     }
 
+    // Return object
     return v;
   });
 } %}
@@ -240,24 +258,97 @@ Statement -> FunctionDefinition
   | ForLoop
   | VariableDeclaration
   | ConstantDeclaration
+  | MemoryStructDeclaration
   | EnumDeclaration
   | IfStatement
   | Assignment
   | Switch
   | BreakContinue
 IfStatement -> "if" _ Expression _ Block
-Literal -> %StringLiteral
-  | %NumberLiteral
-  | %HexNumber
-  | SigLiteral
-  | TopicLiteral
-Expression -> Literal
-  | %Identifier
-  | FunctionCall
-  | Boolean
+NumericLiteral -> %NumberLiteral {% id %}
+  | %HexNumber {% id %}
+  | SigLiteral {% id %}
+  | TopicLiteral {% id %}
+Literal -> %StringLiteral {% id %}
+  | NumericLiteral {% id %}
+Expression -> Literal {% id %}
+  | %Identifier {% id %}
+  | FunctionCall {% id %}
+  | Boolean {% id %}
 FunctionCall -> %Identifier _ "(" _ Expression ( _ "," _ Expression):* _ ")" {% functionCall %}
   | %Identifier _ "(" _ ")" {% functionCall %}
+ArraySpecifier -> "[" _ NumericLiteral _ "]" {%
+  function (d) {
+    return {
+      type: 'ArraySpecifier',
+      value: d[2].value,
+      text: d[2].value,
+    };
+  }
+%}
 IdentifierList -> %Identifier (_ "," _ %Identifier):* {% extractArray %}
+MemoryStructIdentifier -> %Identifier _ ":" _ ( NumericLiteral | ArraySpecifier ) {%
+  function (d) {
+    // check memory struct nuermic literal or identifier
+    const size = utils.bigNumberify(d[4][0].value);
+
+    return {
+      type: 'MemoryStructIdentifier',
+      name: d[0].value,
+      value: d[4][0],
+    };
+  }
+%}
+MemoryStructList -> MemoryStructIdentifier (_ "," _ MemoryStructIdentifier):* {% extractArray %}
+MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")" {%
+  function (d) {
+    const name = d[2].value;
+    const properties = _filter(d[6], 'MemoryStructIdentifier');
+    let methodList = properties.map(v => name + '.' + v.name);
+    let methods = properties.reduce((acc, v, i) => Object.assign(acc, {
+      [name + '.' + v.name]: {
+        size: v.value.value,
+        offset: addValues(methodList.slice(0, i)
+          .map(name => acc[name].size)),
+        method: `function ${name + '.' + v.name}(pos) -> res {
+          res := mslice(${addValues(methodList.slice(0, i)
+            .map(name => acc[name].size))}, ${v.value.value})
+        }`,
+      },
+      /* [name + '.' + v.name + '.position']: '',
+      [name + '.' + v.name + '.offset']: {
+        offsetMath: addValues(methodList.slice(0, i).map(name => {
+
+        })),
+        method: `function ${name + '.' + v.name + '.offset'}() -> _offset {
+        }`,
+      },
+      [name + '.' + v.name + '.index']: {
+        method: `function ${name + '.' + v.name + '.index'}() -> _index {
+          _index := ${i}
+        }`,
+      },
+      [name + '.' + v.name + '.size']: {
+        method: `function ${name + '.' + v.name + '.size'}() -> _size {
+          _size := ${v.value.value}
+        }`,
+      },
+      */
+    }), {});
+    methods[name + '.length'] = '';
+
+    console.log(methodList, methods);
+
+    return {
+      type: 'MemoryStructDeclaration',
+      name,
+      properties,
+      value: '',
+      text: '',
+      toString: () => '',
+    };
+  }
+%}
 VariableDeclaration -> "let" _ IdentifierList _ ":=" _ Expression
 ConstantDeclaration -> "const" _ IdentifierList _ ":=" _ Expression {%
   function (d) {

@@ -21,14 +21,15 @@ function id(x) { return x[0]; }
     equate: ":=",
     "->": "->",
     ",": ",",
+    ":": ":",
     SigLiteral: /(?:sig)(?:"|').*(?:"|')/,
     TopicLiteral: /(?:topic)(?:"|').*(?:"|')/,
     codeKeyword: /(?:code)(?:\s)/,
     objectKeyword: /(?:object)(?:\s)/,
     dataKeyword: /(?:data)(?:\s)/,
     boolean: ["true", "false"],
-    bracket: ["{", "}", "(", ")"],
-    keyword: ['code', 'let', "for", "function", "const", "enum",
+    bracket: ["{", "}", "(", ")", '[', ']'],
+    keyword: ['code', 'let', "for", "function", "const", "enum", "mstruct",
       "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
@@ -114,6 +115,18 @@ function id(x) { return x[0]; }
     return d;
   }
 
+  // add(0, 1)
+  // add(0, add(2, 3))
+  // add(0, add(3, add(4, 2)))
+
+  function addValues(vals) {
+    return vals
+      .map(v => `add(${v.value || v}, `)
+      .concat(['0'])
+      .concat(Array(vals.length).fill(')'))
+      .join('');
+  }
+
   const sliceMethod = `function mslice(position, length) -> result {
       if gt(length, 32) { revert(0, 0) } // protect against overflow
 
@@ -159,9 +172,12 @@ var grammar = {
     {"name": "Block$ebnf$1$subexpression$1", "symbols": ["_", "Statement"]},
     {"name": "Block$ebnf$1", "symbols": ["Block$ebnf$1", "Block$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "Block", "symbols": [{"literal":"{"}, "_", "Statement", "Block$ebnf$1", "_", {"literal":"}"}], "postprocess":  function(d) {
+          // Scan for enums and constant declarations
           const enums = _filter(d, 'Enum')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
           const constants = _filter(d, 'Constant')
+            .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
+          const mstructs = _filter(d, 'MemoryStructDeclaration')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
         
           return mapDeep(d, v => {
@@ -170,6 +186,7 @@ var grammar = {
               v.type = 'UsedEnum';
             }
         
+            // Set constants in context to used
             if (v.type === 'Constant') {
               v.type = 'UsedConstant';
             }
@@ -193,6 +210,7 @@ var grammar = {
               v.text = enums[v.value];
             }
         
+            // Return object
             return v;
           });
         } },
@@ -266,30 +284,108 @@ var grammar = {
     {"name": "Statement", "symbols": ["ForLoop"]},
     {"name": "Statement", "symbols": ["VariableDeclaration"]},
     {"name": "Statement", "symbols": ["ConstantDeclaration"]},
+    {"name": "Statement", "symbols": ["MemoryStructDeclaration"]},
     {"name": "Statement", "symbols": ["EnumDeclaration"]},
     {"name": "Statement", "symbols": ["IfStatement"]},
     {"name": "Statement", "symbols": ["Assignment"]},
     {"name": "Statement", "symbols": ["Switch"]},
     {"name": "Statement", "symbols": ["BreakContinue"]},
     {"name": "IfStatement", "symbols": [{"literal":"if"}, "_", "Expression", "_", "Block"]},
-    {"name": "Literal", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
-    {"name": "Literal", "symbols": [(lexer.has("NumberLiteral") ? {type: "NumberLiteral"} : NumberLiteral)]},
-    {"name": "Literal", "symbols": [(lexer.has("HexNumber") ? {type: "HexNumber"} : HexNumber)]},
-    {"name": "Literal", "symbols": ["SigLiteral"]},
-    {"name": "Literal", "symbols": ["TopicLiteral"]},
-    {"name": "Expression", "symbols": ["Literal"]},
-    {"name": "Expression", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
-    {"name": "Expression", "symbols": ["FunctionCall"]},
-    {"name": "Expression", "symbols": ["Boolean"]},
+    {"name": "NumericLiteral", "symbols": [(lexer.has("NumberLiteral") ? {type: "NumberLiteral"} : NumberLiteral)], "postprocess": id},
+    {"name": "NumericLiteral", "symbols": [(lexer.has("HexNumber") ? {type: "HexNumber"} : HexNumber)], "postprocess": id},
+    {"name": "NumericLiteral", "symbols": ["SigLiteral"], "postprocess": id},
+    {"name": "NumericLiteral", "symbols": ["TopicLiteral"], "postprocess": id},
+    {"name": "Literal", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)], "postprocess": id},
+    {"name": "Literal", "symbols": ["NumericLiteral"], "postprocess": id},
+    {"name": "Expression", "symbols": ["Literal"], "postprocess": id},
+    {"name": "Expression", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)], "postprocess": id},
+    {"name": "Expression", "symbols": ["FunctionCall"], "postprocess": id},
+    {"name": "Expression", "symbols": ["Boolean"], "postprocess": id},
     {"name": "FunctionCall$ebnf$1", "symbols": []},
     {"name": "FunctionCall$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", "Expression"]},
     {"name": "FunctionCall$ebnf$1", "symbols": ["FunctionCall$ebnf$1", "FunctionCall$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "FunctionCall", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", "Expression", "FunctionCall$ebnf$1", "_", {"literal":")"}], "postprocess": functionCall},
     {"name": "FunctionCall", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", {"literal":")"}], "postprocess": functionCall},
+    {"name": "ArraySpecifier", "symbols": [{"literal":"["}, "_", "NumericLiteral", "_", {"literal":"]"}], "postprocess": 
+        function (d) {
+          return {
+            type: 'ArraySpecifier',
+            value: d[2].value,
+            text: d[2].value,
+          };
+        }
+        },
     {"name": "IdentifierList$ebnf$1", "symbols": []},
     {"name": "IdentifierList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
     {"name": "IdentifierList$ebnf$1", "symbols": ["IdentifierList$ebnf$1", "IdentifierList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "IdentifierList", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "IdentifierList$ebnf$1"], "postprocess": extractArray},
+    {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["NumericLiteral"]},
+    {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["ArraySpecifier"]},
+    {"name": "MemoryStructIdentifier", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":":"}, "_", "MemoryStructIdentifier$subexpression$1"], "postprocess": 
+        function (d) {
+          // check memory struct nuermic literal or identifier
+          const size = utils.bigNumberify(d[4][0].value);
+        
+          return {
+            type: 'MemoryStructIdentifier',
+            name: d[0].value,
+            value: d[4][0],
+          };
+        }
+        },
+    {"name": "MemoryStructList$ebnf$1", "symbols": []},
+    {"name": "MemoryStructList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", "MemoryStructIdentifier"]},
+    {"name": "MemoryStructList$ebnf$1", "symbols": ["MemoryStructList$ebnf$1", "MemoryStructList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "MemoryStructList", "symbols": ["MemoryStructIdentifier", "MemoryStructList$ebnf$1"], "postprocess": extractArray},
+    {"name": "MemoryStructDeclaration", "symbols": [{"literal":"mstruct"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", "MemoryStructList", "_", {"literal":")"}], "postprocess": 
+        function (d) {
+          const name = d[2].value;
+          const properties = _filter(d[6], 'MemoryStructIdentifier');
+          let methodList = properties.map(v => name + '.' + v.name);
+          let methods = properties.reduce((acc, v, i) => Object.assign(acc, {
+            [name + '.' + v.name]: {
+              size: v.value.value,
+              offset: addValues(methodList.slice(0, i)
+                .map(name => acc[name].size)),
+              method: `function ${name + '.' + v.name}(pos) -> res {
+                res := mslice(${addValues(methodList.slice(0, i)
+                  .map(name => acc[name].size))}, ${v.value.value})
+              }`,
+            },
+            /* [name + '.' + v.name + '.position']: '',
+            [name + '.' + v.name + '.offset']: {
+              offsetMath: addValues(methodList.slice(0, i).map(name => {
+        
+              })),
+              method: `function ${name + '.' + v.name + '.offset'}() -> _offset {
+              }`,
+            },
+            [name + '.' + v.name + '.index']: {
+              method: `function ${name + '.' + v.name + '.index'}() -> _index {
+                _index := ${i}
+              }`,
+            },
+            [name + '.' + v.name + '.size']: {
+              method: `function ${name + '.' + v.name + '.size'}() -> _size {
+                _size := ${v.value.value}
+              }`,
+            },
+            */
+          }), {});
+          methods[name + '.length'] = '';
+        
+          console.log(methodList, methods);
+        
+          return {
+            type: 'MemoryStructDeclaration',
+            name,
+            properties,
+            value: '',
+            text: '',
+            toString: () => '',
+          };
+        }
+        },
     {"name": "VariableDeclaration", "symbols": [{"literal":"let"}, "_", "IdentifierList", "_", {"literal":":="}, "_", "Expression"]},
     {"name": "ConstantDeclaration", "symbols": [{"literal":"const"}, "_", "IdentifierList", "_", {"literal":":="}, "_", "Expression"], "postprocess": 
         function (d) {
