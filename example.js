@@ -12,6 +12,8 @@ const source = yulp.compile(`
     K.cool(333)
 
     K.cool.size()
+
+    K.offset(2)
   }
   /*
   code cooldfskjkdsfjk
@@ -26,17 +28,25 @@ const source = yulp.compile(`
     }
     */
 
-    mstruct Nick (
-      cool: 11,
-      cool2: 0x1,
-      another: 14
+    mstruct BlockHeader (
+      blockProducer: 32,
+      previousBlockHash: 32,
+      blockHeight: 32,
+      ethereumBlockNumber: 32,
+      transactionRoots.length: 32
     )
 
-    Nick.cool(12)
+    BlockHeader.blockProducer(400)
+    BlockHeader.blockProducer.size() // 32
 
-    Nick.cool2.offset(3)
+    BlockHeader.blockHeight(400) // will return block height
+    BlockHeader.blockHeight.offset(400) // will return pos + length
+    BlockHeader.blockHeight.position(400) // will return pos
+    BlockHeader.blockHeight.size() // 32
+    BlockHeader.blockHeight.index() // 2
 
-    Nick.another(800)
+    BlockHeader.size(400) // return entire struct size
+    BlockHeader.offset(400) // will produce offset
 
     enum Colors (
       Red,

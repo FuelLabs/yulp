@@ -413,9 +413,18 @@ var grammar = {
               }`,
             },
           }), {});
-          dataMap[name + '.length'] = '';
-        
-          console.log(methodList, dataMap);
+          dataMap[name + '.size'] = {
+            method: `function ${name + '.size'}(pos) -> _offset {
+              _offset := ${addValues(methodList
+                .map(name => dataMap[name].size))}
+            }`,
+          };
+          dataMap[name + '.offset'] = {
+            method: `function ${name + '.offset'}(pos) -> _offset {
+              _offset := ${addValues(['pos'].concat(methodList
+                .map(name => dataMap[name].size)))}
+            }`,
+          };
         
           return {
             type: 'MemoryStructDeclaration',
