@@ -32,8 +32,11 @@ const source = yulp.compile(`
       blockProducer: 32,
       previousBlockHash: 32,
       blockHeight: 32,
+      anotherArray.length: 1,
+      anotherArray: [23],
       ethereumBlockNumber: 32,
-      transactionRoots.length: 32
+      transactionRoots.length: 32,
+      transactionRoots: [32]
     )
 
     BlockHeader.blockProducer(400)
@@ -44,6 +47,8 @@ const source = yulp.compile(`
     BlockHeader.blockHeight.position(400) // will return pos
     BlockHeader.blockHeight.size() // 32
     BlockHeader.blockHeight.index() // 2
+
+    BlockHeader.transactionRoots(400, 2) // return the second root in array
 
     BlockHeader.size(400) // return entire struct size
     BlockHeader.offset(400) // will produce offset

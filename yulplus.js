@@ -248,8 +248,6 @@ var grammar = {
             toString: () => methodToInclude[key],
           })));
         
-          console.log(_map);
-        
           return _map;
         } },
     {"name": "Block", "symbols": [{"literal":"{"}, "_", {"literal":"}"}], "postprocess": extractArray},
@@ -380,12 +378,34 @@ var grammar = {
           const name = d[2].value;
           const properties = _filter(d[6], 'MemoryStructIdentifier');
           let methodList = properties.map(v => name + '.' + v.name);
+        
+          // check for array length specifiers
+          for (var p = 0; p < properties.length; p++) {
+            const prop = properties[p];
+        
+            if (prop.value.type === 'ArraySpecifier'
+              && methodList.indexOf(name + '.' + prop.name + '.length') === -1) {
+              throw new Error(`In memory struct "${name}", array property "${prop.name}" requires a ".length" property.`);
+            }
+          }
+        
           let dataMap = properties.reduce((acc, v, i) => Object.assign(acc, {
             [name + '.' + v.name]: {
-              size: v.value.value,
+              size: v.value.type === 'ArraySpecifier'
+                ? ('mul('
+                  + acc[name + '.' + v.name + '.length'].slice
+                  + ', ' + v.value.value + ')')
+                : v.value.value,
               offset: addValues(methodList.slice(0, i)
                 .map(name => acc[name].size)),
-              method: `function ${name + '.' + v.name}(pos) -> res {
+              slice: `mslice(${addValues(['pos'].concat(methodList.slice(0, i)
+                .map(name => acc[name].size)))}, ${v.value.value})`,
+              method: v.value.type === 'ArraySpecifier' ?
+                `function ${name + '.' + v.name}(pos, i) -> res {
+                  res := mslice(${addValues(['pos', 'mul(i, ' + v.value.value + ')'].concat(methodList.slice(0, i)
+                    .map(name => acc[name].size)))}, ${v.value.value})
+                }`
+              : `function ${name + '.' + v.name}(pos) -> res {
                 res := mslice(${addValues(['pos'].concat(methodList.slice(0, i)
                   .map(name => acc[name].size)))}, ${v.value.value})
               }`,
