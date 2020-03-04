@@ -113,15 +113,39 @@
     return d;
   }
 
-  // add(0, 1)
-  // add(0, add(2, 3))
-  // add(0, add(3, add(4, 2)))
-
   function addValues(vals) {
-    return vals
-      .map(v => `add(${v.value || v}, `)
+    let cummulativeValue = utils.bigNumberify(0);
+    let _vals = [0];
+
+    for (let i = 0; i < vals.length; i++) {
+      const v = vals[i];
+      const isInt = Number.isInteger(v);
+
+      if (v.type === 'HexLiteral'
+        || v.type === 'NumberLiteral'
+        || isInt) {
+        if (isInt) {
+          cummulativeValue = cummulativeValue.add(utils.bigNumberify(v));
+        } else {
+          cummulativeValue = cummulativeValue.add(v.value);
+        }
+      } else {
+        _vals.push(v);
+      }
+    }
+
+    // Vals
+    _vals[0] = {
+      type: 'HexLiteral',
+      value: cummulativeValue.toHexString(),
+      text: cummulativeValue.toHexString(),
+      toString: () => cummulativeValue.toHexString(),
+    };
+
+    return _vals
+      .map(v => `safeAdd(${v.value || v}, `)
       .concat(['0'])
-      .concat(Array(vals.length).fill(')'))
+      .concat(Array(_vals.length).fill(')'))
       .join('');
   }
 
@@ -136,6 +160,15 @@
     type: 'MethodInjection',
     toString: () => sliceMethod,
   };
+
+  const requireMethod = `function require(arg) {
+    if lt(arg, 1) {
+      revert(0, 0)
+    }
+  }`;
+
+  // Include safe maths
+  let includeSafeMaths = false;
 %}
 
 @lexer lexer
@@ -167,6 +200,31 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
   const mstructs = _filter(d, 'MemoryStructDeclaration')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
   const methodToInclude = {};
+
+  if (includeSafeMaths) {
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeAdd'] = `
+function safeAdd(x, y) -> z {
+  z := add(x, y)
+  require(or(eq(z, x), gt(z, x)))
+}`;
+
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeSub'] = `
+function safeSub(x, y) -> z {
+  z := sub(x, y)
+  require(or(eq(z, x), lt(z, x)))
+}`;
+
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeMul'] = `
+function safeMul(x, y) -> z {
+  if gt(y, 0) {
+    z := mul(x, y)
+    require(eq(div(z, y), x))
+  }
+}`;
+  }
 
   let _map = mapDeep(d, v => {
     // We have now set within this block context, this enum to Used
@@ -206,7 +264,51 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
     if (v.type === 'FunctionCallIdentifier'
       && typeof mstructs[v.name] !== 'undefined') {
 
+      includeSafeMaths = true;
       methodToInclude[v.name] = "\n" + mstructs[v.name].method + "\n";
+
+      console.log('list', mstructs);
+      console.log('required', mstructs[v.name].required);
+
+      // include the required methods from the struct
+      for (var im = 0; im < mstructs[v.name].required.length; im++) {
+        const requiredMethodName = mstructs[v.name].required[im];
+
+        console.log('method name',
+          requiredMethodName);
+
+        // this has to be recursive for arrays etc..
+        methodToInclude[requiredMethodName] = "\n"
+          + mstructs[requiredMethodName].method
+          + "\n";
+      }
+    }
+
+    // Safe Math Multiply
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'require') {
+      methodToInclude['require'] = requireMethod;
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'add') {
+      includeSafeMaths = true;
+      v.text = 'safeAdd';
+      v.value = 'safeAdd';
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'sub') {
+      includeSafeMaths = true;
+      v.text = 'safeSub';
+      v.value = 'safeSub';
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'mul') {
+      includeSafeMaths = true;
+      v.text = 'safeMul';
+      v.value = 'safeMul';
     }
 
     // Return object
@@ -355,58 +457,72 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
     let dataMap = properties.reduce((acc, v, i) => Object.assign(acc, {
       [name + '.' + v.name]: {
         size: v.value.type === 'ArraySpecifier'
-          ? ('mul('
+          ? ('safeMul('
             + acc[name + '.' + v.name + '.length'].slice
             + ', ' + v.value.value + ')')
-          : v.value.value,
+          : v.value,
         offset: addValues(methodList.slice(0, i)
           .map(name => acc[name].size)),
         slice: `mslice(${addValues(['pos'].concat(methodList.slice(0, i)
           .map(name => acc[name].size)))}, ${v.value.value})`,
         method: v.value.type === 'ArraySpecifier' ?
           `function ${name + '.' + v.name}(pos, i) -> res {
-            res := mslice(${addValues(['pos', 'mul(i, ' + v.value.value + ')'].concat(methodList.slice(0, i)
-              .map(name => acc[name].size)))}, ${v.value.value})
+            res := mslice(safeAdd(${name + '.' + v.name}.position(pos),
+              safeMul(i, ${v.value.value})), ${v.value.value})
           }`
         : `function ${name + '.' + v.name}(pos) -> res {
-          res := mslice(${addValues(['pos'].concat(methodList.slice(0, i)
-            .map(name => acc[name].size)))}, ${v.value.value})
+          res := mslice(${name + '.' + v.name}.position(pos), ${v.value.value})
         }`,
+        required: [
+          name + '.' + v.name + '.position',
+        ],
       },
       [name + '.' + v.name + '.position']: {
         method: `function ${name + '.' + v.name + '.position'}(pos) -> _offset {
           _offset := ${addValues(['pos'].concat(methodList.slice(0, i)
             .map(name => acc[name].size)))}
         }`,
+        required: [],
       },
       [name + '.' + v.name + '.offset']: {
         method: `function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
-          _offset := ${addValues(['pos', v.value.value].concat(methodList.slice(0, i)
-            .map(name => acc[name].size)))}
+          ${v.value.type === 'ArraySpecifier'
+            ? `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, safeMul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
+            : `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
         }`,
+        required: (v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []).concat([
+          name + '.' + v.name + '.position',
+        ]),
       },
       [name + '.' + v.name + '.index']: {
         method: `function ${name + '.' + v.name + '.index'}() -> _index {
           _index := ${i}
         }`,
+        required: [],
       },
       [name + '.' + v.name + '.size']: {
         method: `function ${name + '.' + v.name + '.size'}() -> _size {
           _size := ${v.value.value}
         }`,
+        required: [],
       },
     }), {});
     dataMap[name + '.size'] = {
       method: `function ${name + '.size'}(pos) -> _offset {
-        _offset := ${addValues(methodList
-          .map(name => dataMap[name].size))}
+        _offset := safeSub(${name + '.offset'}(pos), pos)
       }`,
+      required: [name + '.offset'],
     };
     dataMap[name + '.offset'] = {
       method: `function ${name + '.offset'}(pos) -> _offset {
-        _offset := ${addValues(['pos'].concat(methodList
-          .map(name => dataMap[name].size)))}
+        _offset := ${methodList.length
+          ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
       }`,
+      required: methodList.length
+        ? [methodList[methodList.length - 1] + '.offset']
+        : [],
     };
 
     return {

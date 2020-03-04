@@ -48,6 +48,8 @@ const source = yulp.compile(`
     BlockHeader.blockHeight.size() // 32
     BlockHeader.blockHeight.index() // 2
 
+    BlockHeader.transactionRoots.position(0, 0)
+
     BlockHeader.transactionRoots(400, 2) // return the second root in array
 
     BlockHeader.size(400) // return entire struct size
@@ -59,7 +61,7 @@ const source = yulp.compile(`
       Green
     )
 
-    const nick, cool := 0x1
+    const nick, cool := add(mul(323), sub(3, 200))
 
     const hello_ := topic"event Cool()"
 

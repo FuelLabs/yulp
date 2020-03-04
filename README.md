@@ -12,10 +12,10 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Ethereum Standard ABI Signature Generation (`sig"function ..."`)
 - Memory slice (`mslice`)
 - Booleans (`true`, `false`)
+- Safe Math (overflow protection for `addition`, `subtraction`, `multiplication`)
 
 ## Coming Soon
-- Safe Math
-- Types
+- Strict Static Typing
 - Import/Export
 
 ## Install
