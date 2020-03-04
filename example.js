@@ -48,7 +48,7 @@ const source = yulp.compile(`
     BlockHeader.blockHeight.size() // 32
     BlockHeader.blockHeight.index() // 2
 
-    BlockHeader.transactionRoots.position(0, 0)
+    BlockHeader.transactionRoots.position(0)
 
     BlockHeader.transactionRoots(400, 2) // return the second root in array
 

@@ -36,11 +36,17 @@ object "SimpleStore" {
   }
   object "Runtime" {
     code {
-      calldatacopy(0, 0, 36)
-      switch mslice(0, 4) // new memory slice method
+      calldatacopy(0, 0, 36) // write calldata to memory
+
+      mstruct StoreCalldata(
+        sig: 4,
+        val: 32
+      )
+
+      switch StoreCalldata.sig(0) // select signature from memory
 
       case sig"function store(uint256 val)" { // new signature method
-        sstore(0, mload(4))
+        sstore(0, StoreCalldata.val(0)) // sstore calldata value
       }
 
       case sig"function get() returns (uint256)" {

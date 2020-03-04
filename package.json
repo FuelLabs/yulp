@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npm run build && node example.js",
+    "start2": "npm run build && node example.2.js",
     "test": "npm run build && node test.index.js",
     "build": "nearleyc yulplus.ne -o yulplus.js",
     "build-yul": "nearleyc yul.ne -o yul.js"

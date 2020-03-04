@@ -152,7 +152,7 @@
   const sliceMethod = `function mslice(position, length) -> result {
       if gt(length, 32) { revert(0, 0) } // protect against overflow
 
-      result := div(mload(position), exp(2, safeSub(256, safeMul(length, 8))))
+      result := div(mload(position), exp(2, sub(256, mul(length, 8))))
   }`;
   const sliceObject = {
     value: sliceMethod,
@@ -201,31 +201,6 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
   const methodToInclude = {};
 
-  if (includeSafeMaths) {
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeAdd'] = `
-function safeAdd(x, y) -> z {
-  z := add(x, y)
-  require(or(eq(z, x), gt(z, x)))
-}`;
-
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeSub'] = `
-function safeSub(x, y) -> z {
-  z := sub(x, y)
-  require(or(eq(z, x), lt(z, x)))
-}`;
-
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeMul'] = `
-function safeMul(x, y) -> z {
-  if gt(y, 0) {
-    z := mul(x, y)
-    require(eq(div(z, y), x))
-  }
-}`;
-  }
-
   let _map = mapDeep(d, v => {
     // We have now set within this block context, this enum to Used
     if (v.type === 'Enum') {
@@ -267,15 +242,9 @@ function safeMul(x, y) -> z {
       includeSafeMaths = true;
       methodToInclude[v.name] = "\n" + mstructs[v.name].method + "\n";
 
-      console.log('list', mstructs);
-      console.log('required', mstructs[v.name].required);
-
       // include the required methods from the struct
       for (var im = 0; im < mstructs[v.name].required.length; im++) {
         const requiredMethodName = mstructs[v.name].required[im];
-
-        console.log('method name',
-          requiredMethodName);
 
         // this has to be recursive for arrays etc..
         methodToInclude[requiredMethodName] = "\n"
@@ -315,6 +284,31 @@ function safeMul(x, y) -> z {
     return v;
   });
 
+  if (includeSafeMaths) {
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeAdd'] = `
+function safeAdd(x, y) -> z {
+  z := add(x, y)
+  require(or(eq(z, x), gt(z, x)))
+}`;
+
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeSub'] = `
+function safeSub(x, y) -> z {
+  z := sub(x, y)
+  require(or(eq(z, x), lt(z, x)))
+}`;
+
+    methodToInclude['require'] = requireMethod;
+    methodToInclude['safeMul'] = `
+function safeMul(x, y) -> z {
+  if gt(y, 0) {
+    z := mul(x, y)
+    require(eq(div(z, y), x))
+  }
+}`;
+  }
+
   // inject mslice if any mstruct method used.
   if (Object.keys(methodToInclude).length > 0) {
     _map.splice(2, 0, {
@@ -324,6 +318,7 @@ function safeMul(x, y) -> z {
       _includeMarker: 'mslice',
       toString: () => '',
     });
+    includeSafeMaths = true;
   }
 
   // add methods to include
@@ -491,10 +486,10 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
             : `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
         }`,
         required: (v.value.type === 'ArraySpecifier'
-          ? [name + '.' + v.name + '.length']
+          ? [name + '.' + v.name + '.length', name + '.' + v.name + '.length.position']
           : []).concat([
-          name + '.' + v.name + '.position',
-        ]),
+            name + '.' + v.name + '.position',
+          ]),
       },
       [name + '.' + v.name + '.index']: {
         method: `function ${name + '.' + v.name + '.index'}() -> _index {
@@ -520,8 +515,9 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
         _offset := ${methodList.length
           ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
       }`,
-      required: methodList.length
+      required: methodList.length > 0
         ? [methodList[methodList.length - 1] + '.offset']
+          .concat(dataMap[methodList[methodList.length - 1] + '.offset'].required)
         : [],
     };
 
