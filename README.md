@@ -9,14 +9,14 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Memory structures (`mstruct`)
 - Enums (`enum`)
 - Constants (`const`)
-- Ethereum Standard ABI Signature Generation (`sig"function ..."`)
-- Memory slice (`mslice`)
+- Ethereum standard ABI signature generation (`sig"function ..."`)
 - Booleans (`true`, `false`)
-- Safe Math (overflow protection for `addition`, `subtraction`, `multiplication`)
+- Safe math (over/under flow protection for addition, subtraction, multiplication)
+- Injected methods (`mslice` and `require`)
 
 ## Coming Soon
-- Strict Static Typing
-- Import/Export
+- Static typing
+- Import/export of objects, code, and data
 
 ## Install
 
@@ -38,12 +38,12 @@ object "SimpleStore" {
     code {
       calldatacopy(0, 0, 36) // write calldata to memory
 
-      mstruct StoreCalldata(
+      mstruct StoreCalldata( // Custom addressable calldata structure
         sig: 4,
         val: 32
       )
 
-      switch StoreCalldata.sig(0) // select signature from memory
+      switch StoreCalldata.sig(0) // select signature from memory (at position 0)
 
       case sig"function store(uint256 val)" { // new signature method
         sstore(0, StoreCalldata.val(0)) // sstore calldata value
@@ -143,8 +143,6 @@ object "contract" {
 
 These memory descriptive structures allow virtual formation of in-memory structure like-data.
 
-Below is an example of how many methods come packed in with memory structures.
-
 They allow for data chunk sizes up to 32 bytes.
 
 `mstruct` Identifier ( [ property, ... ] )
@@ -156,14 +154,14 @@ Virtual memory array structure as defined as `[` item length `]` and specifier b
 ```
 object "contract" {
   code {
-    // example structure in memory
+    // example structure in memory of a BlockHeader starting at mem. position 400
     mstore(400, 0xaa) // block producer
     mstore(432, 0xbb) // previous block hash
     mstore(464, 0xcc) // block height
     mstore(496, 0x03) // length of anotherArray (i.e. 3 array items)
     mstore(554, 0xaaaabbbbcccc) // array with 3 elements, 0xaaaa, 0xbbbb, 0xcccc
     mstore(560, 0xdd) // Ethereum block number
-    mstore(592, 0x01) // transaction roots length
+    mstore(592, 0x01) // transaction roots array length
     mstore(652, 0xffffffff) // transaction roots, one 4 byte item 0xffffffff
 
     mstruct BlockHeader (
@@ -185,11 +183,13 @@ object "contract" {
     BlockHeader.blockHeight.position(400) // will return pos
     BlockHeader.blockHeight.size() // 32
     BlockHeader.blockHeight.index() // 2
+    BlockHeader.blockHeight.keccak256(500) // keccak256 hash the block height
 
-    BlockHeader.transactionRoots(400, 2) // will return array item 0xcccc
+    BlockHeader.anotherArray(400, 2) // will return anotherArray item 0xcccc
 
     BlockHeader.size(400) // will return the size of the entire struct
     BlockHeader.offset(400) // will return entire offset position of the struct pos + length
+    BlockHeader.keccak256(400) // keccak256 hash the entire block header
   }
 }
 ```
@@ -212,6 +212,16 @@ We communicate via [issues](https://github.com/fuellabs/fuel-core/issues) and [p
 
 - [Changelog](CHANGE_LOG.md)
 - [License](https://raw.githubusercontent.com/fuellabs/fuel-core/master/LICENSE)
+
+## Donate
+
+Please consider donating if you think Fuel is helpful to you or that my work is valuable. I am happy if you can help us buy a cup of coffee. ❤️
+
+- [Gitcoin](https://gitcoin.co/grants/199/fuel-labs)
+
+Or just send us some *Dai*, *USDC* or *Ether*:
+
+**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C** [Etherscan](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
 
 ## Licence
 

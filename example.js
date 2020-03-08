@@ -8,12 +8,15 @@ const source = yulp.compile(`
 
   code {
     mstruct K (cool: 2)
+    mstruct B()
 
     K.cool(333)
 
     K.cool.size()
 
     K.offset(2)
+
+    const nick := 22
   }
   /*
   code cooldfskjkdsfjk
@@ -48,6 +51,8 @@ const source = yulp.compile(`
     BlockHeader.blockHeight.size() // 32
     BlockHeader.blockHeight.index() // 2
 
+    BlockHeader.blockHeight.keccak256(400) // hash the block height
+
     BlockHeader.transactionRoots.position(0)
 
     BlockHeader.transactionRoots(400, 2) // return the second root in array
@@ -55,7 +60,9 @@ const source = yulp.compile(`
     BlockHeader.size(400) // return entire struct size
     BlockHeader.offset(400) // will produce offset
 
-    enum Colors (
+    let k := BlockHeader.keccak256(400) // hash the entire block header
+
+    enum Colors2Low (
       Red,
       Blue,
       Green
@@ -69,9 +76,20 @@ const source = yulp.compile(`
 
     what := Colors.Blue
 
+    enum Colors2 (
+      hello,
+      nick
+    )
+
     function selectAndVerifyInputDeposit(input, witnessesLength) -> length,
       depositHashID, witnessReference {
         const insideMethod := mslice(0, 23)
+
+        mstruct BlockHeader2 (
+          nick: 33
+        )
+
+        let nick := Colors2.hello
 
         mstruct Jonny (
           cool: 32,
@@ -95,7 +113,6 @@ const source = yulp.compile(`
     }
 
     function /* dffds */ nick() {
-
     }
   }
   `);

@@ -59,8 +59,8 @@
     return res.reverse();
   }
 
-  function mapDeep(arr, f) {
-    return Array.isArray(arr) ? arr.map(v => mapDeep(v, f)) : f(arr);
+  function mapDeep(arr, f, d = 0) {
+    return Array.isArray(arr) ? arr.map(v => mapDeep(v, f, d++)) : f(arr, d);
   }
 
   function _filter(arr, kind, stopKind = 'Nothing') {
@@ -149,11 +149,14 @@
       .join('');
   }
 
-  const sliceMethod = `function mslice(position, length) -> result {
-      if gt(length, 32) { revert(0, 0) } // protect against overflow
+  const sliceMethod = `
+function mslice(position, length) -> result {
+  if gt(length, 32) { revert(0, 0) } // protect against overflow
 
-      result := div(mload(position), exp(2, sub(256, mul(length, 8))))
-  }`;
+  result := div(mload(position), exp(2, sub(256, mul(length, 8))))
+}
+
+`;
   const sliceObject = {
     value: sliceMethod,
     text: sliceMethod,
@@ -161,11 +164,13 @@
     toString: () => sliceMethod,
   };
 
-  const requireMethod = `function require(arg) {
-    if lt(arg, 1) {
-      revert(0, 0)
-    }
-  }`;
+  const requireMethod = `
+function require(arg) {
+  if lt(arg, 1) {
+    revert(0, 0)
+  }
+}
+`;
 
   // Include safe maths
   let includeSafeMaths = false;
@@ -173,7 +178,7 @@
 
 @lexer lexer
 
-Yul -> (_ Chunk):* _ {% function(d) { return d; } %}
+Yul -> (_ Chunk):* _ {% function(d) { includeSafeMaths = false; return d; } %}
 Chunk -> ObjectDefinition | CodeDefinition {% function(d) { return d; } %}
 ObjectDefinition -> %objectKeyword _ %StringLiteral _ "{" ( _ objectStatement):* _ "}"
 objectStatement -> CodeDefinition {% function(d) { return d[0]; } %}
@@ -186,12 +191,15 @@ CodeDefinition -> %codeKeyword _ Block {%
     const usesSlice = _filter(d, 'FunctionCallIdentifier')
       .filter(v => v.value === 'mslice' || v._includeMarker === 'mslice')
       .length > 0;
-    d[2].splice(2, 0, sliceObject);
+
+    if (usesSlice) {
+      d[2].splice(2, 0, sliceObject);
+    }
 
     return d;
   }
 %}
-Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
+Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l, reject) {
   // Scan for enums and constant declarations
   const enums = _filter(d, 'Enum')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
@@ -200,11 +208,26 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
   const mstructs = _filter(d, 'MemoryStructDeclaration')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
   const methodToInclude = {};
+  const duplicateChecks = {};
+  let err = null;
+  const dubcheck = (_type, v) => {
+    if (typeof duplicateChecks[_type + v.name] === 'undefined') {
+      duplicateChecks[_type + v.name] = v;
+    } else {
+      throw new Error(`${_type} already declared with the same identifier "${v.name}" on line ${duplicateChecks[_type + v.name].line} and ${v.line}. All ${_type} must have the unique names. Scoping coming soon.`);
+    }
+  };
 
   let _map = mapDeep(d, v => {
+    if (err) { throw new Error(err) }
+
     // We have now set within this block context, this enum to Used
     if (v.type === 'Enum') {
       v.type = 'UsedEnum';
+    }
+
+    if (v.type === 'UsedEnum') {
+      dubcheck('Enum', v);
     }
 
     // Set constants in context to used
@@ -212,9 +235,21 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
       v.type = 'UsedConstant';
     }
 
+    if (v.type === 'UsedConstant') {
+      for (let vi = 0; vi < v.__itendifiers.length; vi++) {
+        dubcheck('Constant', Object.assign(v, {
+          name: v.__itendifiers[vi],
+        }));
+      }
+    }
+
     // Used now..
     if (v.type === 'MemoryStructDeclaration') {
       v.type = 'UsedMemoryStructDeclaration';
+    }
+
+    if (v.type === 'UsedMemoryStructDeclaration') {
+      dubcheck('MemoryStructDeclaration', v);
     }
 
     // Check for constant re-assignments
@@ -290,14 +325,16 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d) {
 function safeAdd(x, y) -> z {
   z := add(x, y)
   require(or(eq(z, x), gt(z, x)))
-}`;
+}
+`;
 
     methodToInclude['require'] = requireMethod;
     methodToInclude['safeSub'] = `
 function safeSub(x, y) -> z {
   z := sub(x, y)
   require(or(eq(z, x), lt(z, x)))
-}`;
+}
+`;
 
     methodToInclude['require'] = requireMethod;
     methodToInclude['safeMul'] = `
@@ -306,7 +343,8 @@ function safeMul(x, y) -> z {
     z := mul(x, y)
     require(eq(div(z, y), x))
   }
-}`;
+}
+`;
   }
 
   // inject mslice if any mstruct method used.
@@ -342,7 +380,7 @@ SwitchDefinitions -> SwitchDefinition (_ SwitchDefinition):* {%
 %}
 SigLiteral -> %SigLiteral {%
   function(d) {
-    const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1));
+    const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1)); // remove sig" and "
     return { type: 'HexNumber', value: sig, text: sig };
   }
 %}
@@ -359,10 +397,15 @@ Boolean -> %boolean {% function(d) {
     return { type: 'HexNumber', value: '0x00', text: '0x00' };
   }
 } %}
-EnumDeclaration -> "enum" _ %Identifier _ "(" _ IdentifierList _ ")" {%
+EnumDeclaration -> "enum" _ %Identifier _ "(" _ ")" {%
+    function (d) {
+      return {};
+    }
+  %}
+  | "enum" _ %Identifier _ "(" _ IdentifierList _ ")" {%
   function (d) {
     const ids = _filter(d, 'Identifier');
-    const name = ids[0];
+    const name = ids[0].value;
     const markers = ids.slice(1);
     const dataMap = markers
       .reduce((acc, v, i) => Object.assign(acc, {
@@ -376,6 +419,7 @@ EnumDeclaration -> "enum" _ %Identifier _ "(" _ IdentifierList _ ")" {%
       ids,
       name,
       markers,
+      line: ids[0].line,
       toString: () => '',
       dataMap,
     };
@@ -433,7 +477,18 @@ MemoryStructIdentifier -> %Identifier _ ":" _ ( NumericLiteral | ArraySpecifier 
   }
 %}
 MemoryStructList -> MemoryStructIdentifier (_ "," _ MemoryStructIdentifier):* {% extractArray %}
-MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")" {%
+MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ ")" {% function(d) {
+    return {
+      type: 'MemoryStructDeclaration',
+      name: d[2].value,
+      dataMap: {},
+      value: '',
+      text: '',
+      line: d[2].line,
+      toString: () => '',
+    };
+} %}
+  | "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")" {%
   function (d) {
     const name = d[2].value;
     const properties = _filter(d[6], 'MemoryStructIdentifier');
@@ -461,30 +516,49 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
         slice: `mslice(${addValues(['pos'].concat(methodList.slice(0, i)
           .map(name => acc[name].size)))}, ${v.value.value})`,
         method: v.value.type === 'ArraySpecifier' ?
-          `function ${name + '.' + v.name}(pos, i) -> res {
-            res := mslice(safeAdd(${name + '.' + v.name}.position(pos),
-              safeMul(i, ${v.value.value})), ${v.value.value})
-          }`
-        : `function ${name + '.' + v.name}(pos) -> res {
-          res := mslice(${name + '.' + v.name}.position(pos), ${v.value.value})
-        }`,
+`
+function ${name + '.' + v.name}(pos, i) -> res {
+  res := mslice(safeAdd(${name + '.' + v.name}.position(pos),
+    safeMul(i, ${v.value.value})), ${v.value.value})
+}
+`
+: `
+function ${name + '.' + v.name}(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos), ${v.value.value})
+}
+`,
         required: [
           name + '.' + v.name + '.position',
         ],
       },
+      [name + '.' + v.name + '.keccak256']: {
+        method: `
+function ${name + '.' + v.name + '.keccak256'}(pos) -> _hash {
+  _hash := keccak256(${name + '.' + v.name + '.position'}(pos), ${name + '.' + v.name + '.size'}(pos))
+}
+`,
+        required: [
+          name + '.' + v.name + '.position',
+          name + '.' + v.name + '.size',
+        ],
+      },
       [name + '.' + v.name + '.position']: {
-        method: `function ${name + '.' + v.name + '.position'}(pos) -> _offset {
-          _offset := ${addValues(['pos'].concat(methodList.slice(0, i)
-            .map(name => acc[name].size)))}
-        }`,
+        method: `
+function ${name + '.' + v.name + '.position'}(pos) -> _offset {
+  _offset := ${addValues(['pos'].concat(methodList.slice(0, i)
+    .map(name => acc[name].size)))}
+}
+`,
         required: [],
       },
       [name + '.' + v.name + '.offset']: {
-        method: `function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
-          ${v.value.type === 'ArraySpecifier'
-            ? `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, safeMul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
-            : `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
-        }`,
+        method: `
+function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
+${v.value.type === 'ArraySpecifier'
+  ? `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, safeMul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
+  : `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
+}
+`,
         required: (v.value.type === 'ArraySpecifier'
           ? [name + '.' + v.name + '.length', name + '.' + v.name + '.length.position']
           : []).concat([
@@ -492,29 +566,45 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
           ]),
       },
       [name + '.' + v.name + '.index']: {
-        method: `function ${name + '.' + v.name + '.index'}() -> _index {
-          _index := ${i}
-        }`,
+        method: `
+function ${name + '.' + v.name + '.index'}() -> _index {
+  _index := ${i}
+}
+`,
         required: [],
       },
       [name + '.' + v.name + '.size']: {
-        method: `function ${name + '.' + v.name + '.size'}() -> _size {
-          _size := ${v.value.value}
-        }`,
+        method: `
+function ${name + '.' + v.name + '.size'}() -> _size {
+  _size := ${v.value.value}
+}
+`,
         required: [],
       },
     }), {});
+    dataMap[name + '.keccak256'] = {
+      method: `
+function ${name + '.keccak256'}(pos) -> _hash {
+  _hash := keccak256(pos, ${name + '.size'}(pos))
+}
+`,
+      required: [name + '.offset'],
+    };
     dataMap[name + '.size'] = {
-      method: `function ${name + '.size'}(pos) -> _offset {
-        _offset := safeSub(${name + '.offset'}(pos), pos)
-      }`,
+      method: `
+function ${name + '.size'}(pos) -> _offset {
+  _offset := safeSub(${name + '.offset'}(pos), pos)
+}
+`,
       required: [name + '.offset'],
     };
     dataMap[name + '.offset'] = {
-      method: `function ${name + '.offset'}(pos) -> _offset {
-        _offset := ${methodList.length
-          ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
-      }`,
+      method: `
+function ${name + '.offset'}(pos) -> _offset {
+  _offset := ${methodList.length
+  ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
+}
+`,
       required: methodList.length > 0
         ? [methodList[methodList.length - 1] + '.offset']
           .concat(dataMap[methodList[methodList.length - 1] + '.offset'].required)
@@ -527,6 +617,7 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")
       dataMap,
       value: '',
       text: '',
+      line: d[2].line,
       toString: () => '',
     };
   }
