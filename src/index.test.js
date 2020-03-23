@@ -78,6 +78,7 @@ test('yulp should be yul', t => {
   t.equal(print(compile(` code { const nick := 0xaaa } `).results), " code { let nick := 0xaaa } ", 'const');
   t.throws(() => print(compile(` code { const nick := 0xaaa const nick := 1 } `).results), 'const dub check');
   t.throws(() => print(compile(` code { const nick := 0xaaa nick := 1 } `).results), 'const dub check');
+  t.throws(() => print(compile(` code { const nick := 0xaaa nick := 22 } `).results), 'const assignment check');
   t.equal(print(compile(` code { enum Colors (red, blue, green) let k := Colors.blue } `).results),
     ` code {  let k := 1 } `, 'enum');
   t.equal(print(compile(` code { enum Colors () } `).results),
@@ -94,5 +95,5 @@ test('yulp should be yul', t => {
     " code { let n := 0x7d4fcb1f } ", 'signature injection');
   t.equal(print(compile(` code { let n := topic"event nick()" } `).results),
     " code { let n := 0x7d4fcb1f143539d746fdb2795d620433c7c91f8298cb94475bb23e4fb2361113 } ", 'event injection');
-  
+
 });

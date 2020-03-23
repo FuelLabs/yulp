@@ -2,16 +2,26 @@
   "name": "yulp",
   "version": "0.0.1",
   "description": "A low-level highly-efficient language for the Ethereum Virtual Machine.",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "npm run build && node example.js",
-    "start2": "npm run build && node example.2.js",
-    "test": "npm run build && node test.index.js",
-    "build": "nearleyc yulplus.ne -o yulplus.js",
-    "build-yul": "nearleyc yul.ne -o yul.js"
+    "start": "npm run build && node ./examples/example.js",
+    "start2": "npm run build && node ./examples/example.full.js",
+    "start3": "npm run build && node ./examples/example.4.js",
+    "browser": "parcel browser/index.html",
+    "test": "npm run build && node ./src/index.test.js",
+    "build": "nearleyc src/yulplus.ne -o src/yulplus.js",
+    "build-yul": "nearleyc src/yul.ne -o src/yul.js"
   },
   "author": "Nick Dodson <nick.dodson@fuel.sh>",
   "license": "Apache-2.0",
+  "optionalDependencies": {
+    "@hyperapp/router": "^0.7.1",
+    "axios": "0.18.0",
+    "ethjs-extras": "0.0.7",
+    "hyperapp": "1.2.9",
+    "regenerator-runtime": "0.13.2",
+    "solc": "0.5.7"
+  },
   "dependencies": {
     "bn.js": "^5.0.0",
     "ethers": "^4.0.39",

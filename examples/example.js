@@ -1,4 +1,4 @@
-const yulp = require('./index');
+const yulp = require('../src/index');
 const source = yulp.compile(`
   // hello
 
@@ -72,7 +72,7 @@ const source = yulp.compile(`
 
     const hello_ := topic"event Cool()"
 
-    ni_ck2, cool2 := sig"function name()"
+    nick, cool2 := sig"function name()"
 
     what := Colors.Blue
 
@@ -117,4 +117,4 @@ const source = yulp.compile(`
   }
   `);
 
-console.log(yulp.print(source.results));
+// console.log(yulp.print(source.results));

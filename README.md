@@ -9,7 +9,7 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Memory structures (`mstruct`)
 - Enums (`enum`)
 - Constants (`const`)
-- Ethereum standard ABI signature generation (`sig"function ..."`)
+- Ethereum standard ABI signature/topic generation (`sig"function ..."`, `topic"event ...`)
 - Booleans (`true`, `false`)
 - Safe math (over/under flow protection for addition, subtraction, multiplication)
 - Injected methods (`mslice` and `require`)
@@ -21,14 +21,27 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 ## Install
 
 ```sh
-npm install --save yulp
+npm install -g yulp
 ```
 
 ## Usage
 
+```bash
+yulp ./SimpleStore.yulp -o ./SimpleStore.yul
+```
+
+Use on an entire directory, any `.yulp` files will be compiled to a `.yul` file.
+
+```bash
+yulp ./
+```
+
+## Library Usage
+
 ```js
 const yulp = require('../index');
 const source = yulp.compile(`
+
 object "SimpleStore" {
   code {
     datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
@@ -47,6 +60,7 @@ object "SimpleStore" {
 
       case sig"function store(uint256 val)" { // new signature method
         sstore(0, StoreCalldata.val(0)) // sstore calldata value
+        log2(0, 0, topic"event Store(uint256 value)", StoreCalldata.val(0))
       }
 
       case sig"function get() returns (uint256)" {
@@ -56,6 +70,7 @@ object "SimpleStore" {
     }
   }
 }
+
 `);
 
 console.log(yulp.print(source.results));

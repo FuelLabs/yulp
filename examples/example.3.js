@@ -1,4 +1,4 @@
-const yulp = require('./index');
+const yulp = require('../src/index');
 const source = yulp.compile(`
   object "SimpleStore" {
     code {

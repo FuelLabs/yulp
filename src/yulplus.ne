@@ -3,7 +3,7 @@
   const { utils } = require('ethers');
   function id(x) { return x[0]; }
 
-  const print = v => v
+  const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
     .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
 
   let lexer = moo.compile({
@@ -25,7 +25,8 @@
     dataKeyword: /(?:data)(?:\s)/,
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")", '[', ']'],
-    keyword: ['code', 'let', "for", "function", "const", "enum", "mstruct",
+    ConstIdentifier: /(?:const)(?:\s)/,
+    keyword: ['code', 'let', "for", "function", "enum", "mstruct",
       "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
@@ -174,6 +175,7 @@ function require(arg) {
 
   // Include safe maths
   let includeSafeMaths = false;
+  let identifierTree = {};
 %}
 
 @lexer lexer
@@ -199,7 +201,14 @@ CodeDefinition -> %codeKeyword _ Block {%
     return d;
   }
 %}
-Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l, reject) {
+Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
+  const blockId = d[0].line + '.' + d[0].col;
+  const currentBlock = identifierTree[blockId] = {
+    type: 'Block',
+    id: blockId,
+    value: ``, // `/* ${blockId} */`,
+  };
+
   // Scan for enums and constant declarations
   const enums = _filter(d, 'Enum')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
@@ -233,10 +242,13 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l, reject) {
     // Set constants in context to used
     if (v.type === 'Constant') {
       v.type = 'UsedConstant';
+      v.block = currentBlock.id;
     }
 
     if (v.type === 'UsedConstant') {
       for (let vi = 0; vi < v.__itendifiers.length; vi++) {
+        // currentBlock.identifiers.push(v.__itendifiers[vi]);
+
         dubcheck('Constant', Object.assign(v, {
           name: v.__itendifiers[vi],
         }));
@@ -255,9 +267,8 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l, reject) {
     // Check for constant re-assignments
     if (v.type === 'Assignment') {
       for (var i = 0; i < v._identifiers.length; i++) {
-
         if (typeof constants[v._identifiers[i].value] !== 'undefined') {
-          throw new Error(`Constant re-assignment '${v._identifiers[i].value}' to '${print(v._value)}' at line ${v.line}`)
+          throw new Error(`Constant re-assignment '${v._identifiers[i].value}' to '${print(v._value)}' at line ${v.line}`);
         }
       }
     }
@@ -359,6 +370,17 @@ function safeMul(x, y) -> z {
     includeSafeMaths = true;
   }
 
+  /*
+  mapDeep(_map, v => {
+    console.log()
+  });
+  */
+
+  // set secondary kind of first element to Block
+  _map.splice(0, 0, currentBlock);
+
+  // console.log('current block', currentBlock);
+
   // add methods to include
   _map.splice(2, 0, Object.keys(methodToInclude)
       .map(key => ({
@@ -367,6 +389,8 @@ function safeMul(x, y) -> z {
     text: methodToInclude[key],
     toString: () => methodToInclude[key],
   })));
+
+  // console.log('Id tree', identifierTree);
 
   return _map;
 } %}
@@ -623,11 +647,11 @@ function ${name + '.offset'}(pos) -> _offset {
   }
 %}
 VariableDeclaration -> "let" _ IdentifierList _ ":=" _ Expression
-ConstantDeclaration -> "const" _ IdentifierList _ ":=" _ Expression {%
+ConstantDeclaration -> %ConstIdentifier _ IdentifierList _ ":=" _ Expression {%
   function (d) {
     // Change const to let
-    d[0].value = 'let';
-    d[0].text = 'let';
+    d[0].value = 'let ';
+    d[0].text = 'let ';
     d[0].type = 'Constant';
     d[0].__itendifiers = _filter(d, 'Identifier', 'equate')
       .map(v => v.value);

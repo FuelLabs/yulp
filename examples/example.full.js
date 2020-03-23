@@ -1,4 +1,4 @@
-const yulp = require('./index');
+const yulp = require('../src/index');
 const source = yulp.compile(`
   code {
       // Assign all calldata into free memory, remove 4 byte signature and 64 bytes size/length data (68 bytes)
