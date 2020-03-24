@@ -1,8 +1,10 @@
-# Yul Plus
+# Yul+
 
 [![npm version](https://badge.fury.io/js/yulp.svg)](https://badge.fury.io/js/yulp)
 
 A low-level, highly efficient extension to Yul, an intermediate smart-contract language for the Ethereum Virtual Machine.
+
+[Try it Now!](https://yulp.fuel.sh)
 
 ## Features
 - All existing Yul features
@@ -17,23 +19,12 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 ## Coming Soon
 - Static typing
 - Import/export of objects, code, and data
+- CLI support
 
 ## Install
 
 ```sh
 npm install -g yulp
-```
-
-## Usage
-
-```bash
-yulp ./SimpleStore.yulp -o ./SimpleStore.yul
-```
-
-Use on an entire directory, any `.yulp` files will be compiled to a `.yul` file.
-
-```bash
-yulp ./
 ```
 
 ## Library Usage

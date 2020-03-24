@@ -17,6 +17,7 @@ const state = {
   error: null,
   bytecode: '',
   autoCompile: true,
+  yulpResult: null,
   contracts: {
     'input.yul': {}
   },
@@ -50,7 +51,7 @@ const actions = {
   compile: () => (state, actions) => {
 
     let yulpResult = null;
-    let yulpError = [];
+    let yulpError = null;
 
     try {
       yulpResult = yulp.print(yulp.compile(editor.getValue()).results);
@@ -71,6 +72,7 @@ const actions = {
 
     actions.change({
       contracts: output.contracts,
+      yulpResult: yulpResult,
       errors: yulpError || output.errors,
     });
   },
@@ -139,26 +141,31 @@ const NotFound = () => (
 
 const Code = () => (state, actions) => (
   <div style={`display: flex; flex-direction: row; ${state.dark ? 'color: rgb(248, 248, 242);' : 'color: #000;'}`}>
-    <div style="display: flex; flex-direction: row; width: 70%">
-      <div id="editor" oncreate={actions.load} style="width: 100%; height: 100%; font-size: 18px;">{local.getItem('code') || `
+    <div style="flex-direction: row; position: relative; width: 70%">
+      <div id="editor" oncreate={actions.load}
+      style="width: 70%; height: 100%; position: fixed; font-size: 14px;">{
+        local.getItem('code') || `
 object "SimpleStore" {
   code {
-    // constructor code
-
-    datacopy(0, dataoffset("Runtime"), datasize("Runtime"))  // runtime code
+    datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
     return(0, datasize("Runtime"))
   }
   object "Runtime" {
     code {
-      calldatacopy(0, 0, 36) // copy calldata to memory
+      calldatacopy(0, 0, 36)
 
-      switch and(shr(224, mload(0)), 0xffffffff) // 4 byte method signature
+      mstruct Calldata(
+        sig: 4,
+        val: 32
+      )
 
-      case 0x6057361d { // store(uint256 val)
-        sstore(0, mload(4))
+      switch Calldata.sig(0)
+
+      case sig"function store(uint256 val)" {
+        sstore(0, Calldata.val(0))
       }
 
-      case 0x6d4ce63c { // get() returns (uint256)
+      case sig"function get() returns (uint256)" {
         mstore(100, sload(0))
         return (100, 32)
       }
@@ -187,6 +194,18 @@ object "SimpleStore" {
 
       <br /><br />
 
+      <h3>Yul Code</h3>
+
+      {state.yulpResult ? (
+        <div>
+          <textarea style="width: 100%; padding: 10px;">{
+            state.yulpResult || ''
+          }</textarea>
+        </div>
+      ) : ''}
+
+      <br /><br />
+
       {state.contracts ? Object.keys(state.contracts['input.yul']).map(contractName => (<div style="display: flex; flex-direction: column;">
         <h3>{contractName} (<small>{Math.round(state.contracts['input.yul'][contractName].evm.bytecode.object.length / 2)} bytes</small>)</h3>
         0x{state.contracts['input.yul'][contractName].evm.bytecode.object}
@@ -197,7 +216,11 @@ object "SimpleStore" {
       <div style="flex: 1; display: flex; flex-direction: row; align-items: flex-end; font-weight: bold; font-size: 18px;">
 
         <a href="https://solidity.readthedocs.io/en/v0.5.7/yul.html" target="_blank" style="text-decoration: none; margin-top: 40px;">
-          Yul Documentation
+          Yul Docs
+        </a>
+
+        <a href="https://github.com/fuellabs/yulp" target="_blank" style="text-decoration: none; margin-left: 20px; margin-top: 40px;">
+          Yul+ Docs
         </a>
 
       </div>
