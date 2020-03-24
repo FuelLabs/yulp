@@ -207,21 +207,21 @@ There is always a lot of work to do, and will have many rules to maintain. So pl
 - Create, enhance, and debug fuel-core rules (see our guide to ["Working on rules"](./.github/CONTRIBUTING.md)).
 - Improve documentation.
 - Chime in on any open issue or pull request.
-- Open new issues about your ideas for making `fuel-core` better, and pull requests to show us how your idea works.
+- Open new issues about your ideas for making `yulp` better, and pull requests to show us how your idea works.
 - Add new tests to *absolutely anything*.
 - Create or contribute to ecosystem tools.
 - Spread the word!
 
-We communicate via [issues](https://github.com/fuellabs/fuel-core/issues) and [pull requests](https://github.com/fuellabs/fuel-core/pulls).
+We communicate via [issues](https://github.com/fuellabs/yulp/issues) and [pull requests](https://github.com/fuellabs/yulp/pulls).
 
 ## Important documents
 
 - [Changelog](CHANGE_LOG.md)
-- [License](https://raw.githubusercontent.com/fuellabs/fuel-core/master/LICENSE)
+- [License](https://raw.githubusercontent.com/fuellabs/yulp/master/LICENSE)
 
 ## Donate
 
-Please consider donating if you think Fuel is helpful to you or that my work is valuable. I am happy if you can help us buy a cup of coffee. ❤️
+Please consider donating if you think Yul+ is helpful to you or that my work is valuable. We are happy if you can help us buy a cup of coffee. ❤️
 
 - [Gitcoin](https://gitcoin.co/grants/199/fuel-labs)
 
