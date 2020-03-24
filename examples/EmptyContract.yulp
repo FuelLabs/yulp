@@ -1,0 +1,16 @@
+object "EmptyContract" {
+  code {
+
+    // Your constructor code
+
+    datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
+    return(0, datasize("Runtime"))
+  }
+  object "Runtime" {
+    code {
+
+      // Your runtime code
+
+    }
+  }
+}

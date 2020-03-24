@@ -5,9 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "npm run build && node ./examples/example.js",
-    "start2": "npm run build && node ./examples/example.full.js",
-    "start3": "npm run build && node ./examples/example.4.js",
     "browser": "parcel browser/index.html",
+    "build-browser": "parcel build browser/index.html",
     "test": "npm run build && node ./src/index.test.js",
     "build": "nearleyc src/yulplus.ne -o src/yulplus.js",
     "build-yul": "nearleyc src/yul.ne -o src/yul.js"
