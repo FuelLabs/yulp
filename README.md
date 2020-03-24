@@ -147,24 +147,13 @@ object "contract" {
 
 ## Memory Structures
 
-Memory structures enable better describing and handling of pre-existing in-memory structures.
+Memory structures enable better handling of pre-existing in-memory structures.
 
-`mstruct` Identifier ( [ property, ... ] )
+`mstruct Identifier ( [ property, ... ] )`
 
 A structure property is defined by an identifier and length specifier (i.e. `blockProducer:32`) where the identifier is `blockProducer` and the length is `32 bytes`.
 
-Structures also allow for a description of an array-like property, where the length of the array can be described by a `.length` property, followed by an array item length property as follows:
-
-```js
-mstruct SomeArr(
-  someArray.length: 1,
-  someArray: [4]
-)
-```
-
-Here, the length of `SomeArray` is described by whatever `someArray.length:1` is assigned in memory, and `someArray: [4]` describes each array element in memory will be `4 bytes` in size.
-
-Example data: `0x03aaaaaaaabbbbbbbbcccccccc`, an array with elements `0xaaaaaa`, `0xbbbbbb`, and `0xcccccc`.
+In-memory array like structures are defined using a `name.length` property, followed by a `name:[array item size]` property.
 
 Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
 
