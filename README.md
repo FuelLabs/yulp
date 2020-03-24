@@ -69,9 +69,9 @@ console.log(yulp.print(source.results));
 
 ## Enums
 
-Here we have a fully featured scoped `enum` identifier which acts as a constant.
+Here we have a fully featured `enum` identifier which acts as a constant.
 
-```
+```js
 object "contract" {
   code {
     enum Colors (
@@ -87,9 +87,9 @@ object "contract" {
 
 ## Constants
 
-`const` will define a `let` variable value that cannot be changed.
+`const` will define a `let` variable value that cannot be re-assigned.
 
-```
+```js
 object "contract" {
   code {
     const firstVar = 0xaa
@@ -102,7 +102,7 @@ object "contract" {
 
 `mslice(position, length)` will return a 1-32 byte value from memory.
 
-```
+```js
 object "contract" {
   code {
     mstore(30, 0xaaaa)
@@ -116,7 +116,7 @@ object "contract" {
 
 `true` and `false` are added and equate to values `0x01` and `0x00`.
 
-```
+```js
 object "contract" {
   code {
     mstore(30, true)
@@ -132,7 +132,7 @@ object "contract" {
 
 `topic" [ event abi definition ] "` will equate to the 32 byte topic hash
 
-```
+```js
 object "contract" {
   code {
     const storeSig = sig"function store(uint256 val)"
@@ -147,17 +147,28 @@ object "contract" {
 
 ## Memory Structures
 
-These memory descriptive structures allow virtual formation of in-memory structure like-data.
-
-They allow for data chunk sizes up to 32 bytes.
+Memory structures enable better describing and handling of pre-existing in-memory structures.
 
 `mstruct` Identifier ( [ property, ... ] )
 
-Property is defined by an identifier and length specifier (i.e. `blockProducer:32`) where the identifier is `blockProducer` and the length is `32` bytes.
+A structure property is defined by an identifier and length specifier (i.e. `blockProducer:32`) where the identifier is `blockProducer` and the length is `32 bytes`.
 
-Virtual memory array structure as defined as `[` item length `]` and specifier before hand a total length array `.length` ':' length size specifier.
+Structures also allow for a description of an array-like property, where the length of the array can be described by a `.length` property, followed by an array item length property as follows:
 
+```js
+mstruct SomeArr(
+  someArray.length: 1,
+  someArray: [4]
+)
 ```
+
+Here, the length of `SomeArray` is described by whatever `someArray.length:1` is assigned in memory, and `someArray: [4]` describes each array element in memory will be `4 bytes` in size.
+
+Example data: `0x03aaaaaaaabbbbbbbbcccccccc`, an array with elements `0xaaaaaa`, `0xbbbbbb`, and `0xcccccc`.
+
+Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
+
+```js
 object "contract" {
   code {
     // example structure in memory of a BlockHeader starting at mem. position 400
