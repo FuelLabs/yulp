@@ -1,0 +1,14 @@
+{
+  "name": "fuel-yulp",
+  "version": 2,
+  "builds": [
+    { "src": "./*.js", "use": "@now/static" },
+    { "src": "./*.map", "use": "@now/static" },
+    { "src": "./*.html", "use": "@now/static" },
+    { "src": "./*.svg", "use": "@now/static" },
+    { "src": "./*.png", "use": "@now/static" }
+  ],
+  "routes": [
+    { "src": "^/(.*)", "dest": "/$1"}
+  ]
+}

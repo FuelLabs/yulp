@@ -1,9 +1,51 @@
 const { test } = require('zora');
 const { compile, print } = require('./index');
+const solc = require('solc');
 
 function yulToYulp(source, t) {
   t.equal(print(compile(source).results), source, 'yul to yulp');
 }
+
+// Parse and Compile
+function yulCompile(source) {
+  try {
+    var output = JSON.parse(solc.compile(JSON.stringify({
+      language: 'Yul',
+      sources: {
+        'Target.yul': {
+          content: source,
+        },
+      },
+      "settings": {
+        "outputSelection": { "*": { "*": ["*"], "": [ "*" ] } },
+        "optimizer": { "enabled": false, "details": { "yul": true } }
+      }
+    })));
+
+    // is errors in compiling
+    const isErrors = (output.errors || [])
+      .filter(v => v.type !== 'Warning').length;
+
+    if (isErrors) {
+      return { errors: output.errors, bytecode: null };
+    }
+
+    return {
+      errors: null,
+      bytecode: '0x' + output.contracts['Target.yul'].Target.evm.bytecode.object,
+    };
+  } catch (error) {
+    return { errors: error, bytecode: null };
+  }
+}
+
+console.log(yulCompile(`
+  object "Target" {
+    code {
+      mstore(0, 0)
+    }
+  }
+`));
 
 test('yulp should be yul', t => {
   yulToYulp(`object "SimpleStore" {}`, t);
@@ -95,5 +137,25 @@ test('yulp should be yul', t => {
     " code { let n := 0x7d4fcb1f } ", 'signature injection');
   t.equal(print(compile(` code { let n := topic"event nick()" } `).results),
     " code { let n := 0x7d4fcb1f143539d746fdb2795d620433c7c91f8298cb94475bb23e4fb2361113 } ", 'event injection');
+  t.equal(print(compile(` code {
+    mstore(0, 3, 5, 10)
+  } `).results),
+    " code {  } ", 'specialized mstore');
+  t.equal(print(compile(` code {
+    mstore( 0,3,5,10)
+  } `).results),
+    " code {  } ", 'specialized mstore');
+  t.equal(print(compile(` code {
+    mstore( 0,3,5)
+  } `).results),
+    " code {  } ", 'specialized mstore');
+  t.equal(print(compile(` code {
+    mstore( mload(add(32, 22)),3,5,10,mload(2))
+  } `).results),
+    " code {  } ", 'specialized mstore');
+  t.equal(print(compile(` code {
+    mstore( 0,mload(3))
+  } `).results),
+    " code {\n    mstore( 0,mload(3))\n  } ", 'specialized mstore');
 
 });

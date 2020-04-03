@@ -1,0 +1,10 @@
+object "contract" {
+  code {
+    const storeSig := sig"function store(uint256 val)"
+    const eventSig := topic"event Store (uint256 indexed val)"
+
+    log1(0, 0, storeSig) // will log 0x6057361d
+
+    log1(0, 0, eventSig) // will log 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+  }
+}

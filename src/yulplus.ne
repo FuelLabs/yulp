@@ -1,6 +1,8 @@
 @{%
   const moo = require('moo')
   const { utils } = require('ethers');
+  const clone = require('rfdc')() // Returns the deep copy function
+
   function id(x) { return x[0]; }
 
   const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
@@ -107,6 +109,39 @@
     d[0].type = 'FunctionCallIdentifier';
     d[0].name = d[0].value;
 
+    // if mstore(0, x, x, x) args, than process this..
+    if (d[0].value === 'mstore' && d[2][3].length > 1) {
+      console.log('special mstore', d);
+
+      // values after pos, x, [....]
+      const secondaryValues = d[2][3].slice(1);
+
+      // slice away the secondary values
+      d[2][3] = d[2][3].slice(0, 1);
+
+      // New injected mstores
+      const firstMstoreArgument = print(d[2][2]);
+      const additionalMstores = secondaryValues.map((v, i) => {
+
+        const mstoreCopy = clone(d);
+        const valOffset = (i + 1) * 32;
+        mstoreCopy[2][2] = [
+          { type: 'FunctionCallIdentifier', noSafeMath: true, name: 'add', value: 'add', text: 'add', toString: () => 'add' },
+          [{ type: 'bracket', value: '(', text: '(', toString: () => '(' },
+          clone(d[2][2]),
+          { type: 'comma', text: ',', value: ',', toString: () => ',' },
+          { type: 'NumberLiteral', value: valOffset, text: valOffset, toString: () => valOffset },
+          { type: 'bracket', value: ')', text: ')', toString: () => ')' }],
+        ];
+        mstoreCopy[2][3][0] = v;
+
+        return mstoreCopy;
+      });
+
+      d = d.concat(additionalMstores
+          .map(v => [{ type: 'space', text: ' ', value: ' ', toString: () => ' ' }].concat(v)));
+    }
+
     return d;
   }
 
@@ -174,13 +209,12 @@ function require(arg) {
 `;
 
   // Include safe maths
-  let includeSafeMaths = false;
   let identifierTree = {};
 %}
 
 @lexer lexer
 
-Yul -> (_ Chunk):* _ {% function(d) { includeSafeMaths = false; return d; } %}
+Yul -> (_ Chunk):* _ {% function(d) { return d; } %}
 Chunk -> ObjectDefinition | CodeDefinition {% function(d) { return d; } %}
 ObjectDefinition -> %objectKeyword _ %StringLiteral _ "{" ( _ objectStatement):* _ "}"
 objectStatement -> CodeDefinition {% function(d) { return d[0]; } %}
@@ -190,13 +224,67 @@ DataDeclaration -> %dataKeyword _ %StringLiteral _ (%StringLiteral | %HexLiteral
 CodeDefinition -> %codeKeyword _ Block {%
   function (d) {
     // Inject slice method
-    const usesSlice = _filter(d, 'FunctionCallIdentifier')
+    const functionCalls = _filter(d, 'FunctionCallIdentifier');
+    const usesSlice = functionCalls
       .filter(v => v.value === 'mslice' || v._includeMarker === 'mslice')
       .length > 0;
+    let usesRequire = functionCalls
+      .filter(v => v.usesRequire === true)
+      .length > 0;
+    const usesMath = functionCalls
+      .filter(v => v.usesSafeMath === true)
+      .length > 0;
+    let __methodToInclude = {};
+
+    if (usesMath) {
+      usesRequire = true;
+      __methodToInclude['safeAdd'] = `
+  function safeAdd(x, y) -> z {
+    z := add(x, y)
+    require(or(eq(z, x), gt(z, x)))
+  }
+  `;
+
+      __methodToInclude['safeSub'] = `
+  function safeSub(x, y) -> z {
+    z := sub(x, y)
+    require(or(eq(z, x), lt(z, x)))
+  }
+  `;
+
+      __methodToInclude['safeMul'] = `
+  function safeMul(x, y) -> z {
+    if gt(y, 0) {
+      z := mul(x, y)
+      require(eq(div(z, y), x))
+    }
+  }
+  `;
+
+      __methodToInclude['safeDiv'] = `
+    function safeDiv(x, y) -> z {
+      require(gt(y, 0))
+      z := div(x, y)
+    }
+    `;
+    }
+
+    if (usesRequire) {
+      __methodToInclude['require'] = requireMethod;
+    }
 
     if (usesSlice) {
       d[2].splice(2, 0, sliceObject);
     }
+
+    d[2].splice(2, 0, Object.keys(__methodToInclude)
+        .map(key => ({
+      type: 'InjectedMethod',
+      value: __methodToInclude[key],
+      text: __methodToInclude[key],
+      toString: () => __methodToInclude[key],
+    })));
+
 
     return d;
   }
@@ -216,7 +304,7 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
   const mstructs = _filter(d, 'MemoryStructDeclaration')
     .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
-  const methodToInclude = {};
+  let methodToInclude = {};
   const duplicateChecks = {};
   let err = null;
   const dubcheck = (_type, v) => {
@@ -284,79 +372,65 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
 
     if (v.type === 'FunctionCallIdentifier'
       && typeof mstructs[v.name] !== 'undefined') {
-
-      includeSafeMaths = true;
       methodToInclude[v.name] = "\n" + mstructs[v.name].method + "\n";
 
-      // include the required methods from the struct
-      for (var im = 0; im < mstructs[v.name].required.length; im++) {
-        const requiredMethodName = mstructs[v.name].required[im];
+      // recursive get require
+      const getRequired = required => {
+        // include the required methods from the struct
+        for (var im = 0; im < required.length; im++) {
+          const requiredMethodName = required[im];
 
-        // this has to be recursive for arrays etc..
-        methodToInclude[requiredMethodName] = "\n"
-          + mstructs[requiredMethodName].method
-          + "\n";
-      }
+          // this has to be recursive for arrays etc..
+          methodToInclude[requiredMethodName] = "\n"
+            + mstructs[requiredMethodName].method
+            + "\n";
+
+          getRequired(mstructs[requiredMethodName].required);
+        }
+      };
+
+      // get required..
+      getRequired(mstructs[v.name].required);
     }
 
     // Safe Math Multiply
     if (v.type === 'FunctionCallIdentifier'
       && v.name === 'require') {
-      methodToInclude['require'] = requireMethod;
+      v.usesRequire = true;
     }
 
     if (v.type === 'FunctionCallIdentifier'
-      && v.name === 'add') {
-      includeSafeMaths = true;
+      && v.name === 'add'
+      && !v.noSafeMath) {
       v.text = 'safeAdd';
       v.value = 'safeAdd';
+      v.usesSafeMath = true;
     }
 
     if (v.type === 'FunctionCallIdentifier'
       && v.name === 'sub') {
-      includeSafeMaths = true;
       v.text = 'safeSub';
       v.value = 'safeSub';
+      v.usesSafeMath = true;
     }
 
     if (v.type === 'FunctionCallIdentifier'
       && v.name === 'mul') {
-      includeSafeMaths = true;
       v.text = 'safeMul';
       v.value = 'safeMul';
+      v.usesSafeMath = true;
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'div') {
+      v.text = 'safeDiv';
+      v.value = 'safeDiv';
+      v.usesSafeMath = true;
     }
 
     // Return object
     return v;
   });
-
-  if (includeSafeMaths) {
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeAdd'] = `
-function safeAdd(x, y) -> z {
-  z := add(x, y)
-  require(or(eq(z, x), gt(z, x)))
-}
-`;
-
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeSub'] = `
-function safeSub(x, y) -> z {
-  z := sub(x, y)
-  require(or(eq(z, x), lt(z, x)))
-}
-`;
-
-    methodToInclude['require'] = requireMethod;
-    methodToInclude['safeMul'] = `
-function safeMul(x, y) -> z {
-  if gt(y, 0) {
-    z := mul(x, y)
-    require(eq(div(z, y), x))
-  }
-}
-`;
-  }
 
   // inject mslice if any mstruct method used.
   if (Object.keys(methodToInclude).length > 0) {
@@ -365,21 +439,13 @@ function safeMul(x, y) -> z {
       value: '',
       text: '',
       _includeMarker: 'mslice',
+      usesSafeMath: true,
       toString: () => '',
     });
-    includeSafeMaths = true;
   }
-
-  /*
-  mapDeep(_map, v => {
-    console.log()
-  });
-  */
 
   // set secondary kind of first element to Block
   _map.splice(0, 0, currentBlock);
-
-  // console.log('current block', currentBlock);
 
   // add methods to include
   _map.splice(2, 0, Object.keys(methodToInclude)
@@ -389,8 +455,6 @@ function safeMul(x, y) -> z {
     text: methodToInclude[key],
     toString: () => methodToInclude[key],
   })));
-
-  // console.log('Id tree', identifierTree);
 
   return _map;
 } %}
@@ -476,7 +540,8 @@ Expression -> Literal {% id %}
   | %Identifier {% id %}
   | FunctionCall {% id %}
   | Boolean {% id %}
-FunctionCall -> %Identifier _ "(" _ Expression ( _ "," _ Expression):* _ ")" {% functionCall %}
+ExpressionList -> "(" _ Expression ( _ "," _ Expression):* _ ")"
+FunctionCall -> %Identifier _ ExpressionList {% functionCall %}
   | %Identifier _ "(" _ ")" {% functionCall %}
 ArraySpecifier -> "[" _ NumericLiteral _ "]" {%
   function (d) {
@@ -606,14 +671,16 @@ function ${name + '.' + v.name + '.size'}() -> _size {
         required: [],
       },
     }), {});
+
     dataMap[name + '.keccak256'] = {
       method: `
 function ${name + '.keccak256'}(pos) -> _hash {
   _hash := keccak256(pos, ${name + '.size'}(pos))
 }
 `,
-      required: [name + '.offset'],
+      required: [name + '.size', name + '.offset'],
     };
+
     dataMap[name + '.size'] = {
       method: `
 function ${name + '.size'}(pos) -> _offset {
@@ -622,6 +689,7 @@ function ${name + '.size'}(pos) -> _offset {
 `,
       required: [name + '.offset'],
     };
+
     dataMap[name + '.offset'] = {
       method: `
 function ${name + '.offset'}(pos) -> _offset {
@@ -631,7 +699,7 @@ function ${name + '.offset'}(pos) -> _offset {
 `,
       required: methodList.length > 0
         ? [methodList[methodList.length - 1] + '.offset']
-          .concat(dataMap[methodList[methodList.length - 1] + '.offset'].required)
+            .concat(dataMap[methodList[methodList.length - 1] + '.offset'].required)
         : [],
     };
 

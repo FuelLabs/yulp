@@ -1,12 +1,12 @@
 {
   "name": "yulp",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "A low-level highly-efficient language for the Ethereum Virtual Machine.",
   "main": "src/index.js",
   "scripts": {
     "start": "npm run build && node ./examples/example.js",
     "browser": "parcel browser/index.html",
-    "build-browser": "parcel build browser/index.html",
+    "build-browser": "parcel build browser/index.html && cp now.json dist/now.json",
     "test": "npm run build && node ./src/index.test.js",
     "build": "nearleyc src/yulplus.ne -o src/yulplus.js",
     "build-yul": "nearleyc src/yul.ne -o src/yul.js"
@@ -25,7 +25,8 @@
     "bn.js": "^5.0.0",
     "ethers": "^4.0.39",
     "moo": "^0.5.1",
-    "nearley": "^2.19.0"
+    "nearley": "^2.19.0",
+    "rfdc": "^1.1.4"
   },
   "devDependencies": {
     "zora": "^3.1.8"

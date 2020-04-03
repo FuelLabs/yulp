@@ -135,8 +135,8 @@ object "contract" {
 ```js
 object "contract" {
   code {
-    const storeSig = sig"function store(uint256 val)"
-    const eventSig = topic"event Store (uint256 indexed val)"
+    const storeSig := sig"function store(uint256 val)"
+    const eventSig := topic"event Store (uint256 indexed val)"
 
     log1(0, 0, storeSig) // will log 0x6057361d
 
