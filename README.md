@@ -92,8 +92,8 @@ object "contract" {
 ```js
 object "contract" {
   code {
-    const firstVar = 0xaa
-    const someOther = 1
+    const firstVar := 0xaa
+    const someOther := 1
   }
 }
 ```
