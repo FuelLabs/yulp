@@ -15,7 +15,7 @@
   "license": "Apache-2.0",
   "optionalDependencies": {
     "@hyperapp/router": "^0.7.1",
-    "axios": "0.18.0",
+    "axios": "0.18.1",
     "ethjs-extras": "0.0.7",
     "hyperapp": "1.2.9",
     "regenerator-runtime": "0.13.2",
