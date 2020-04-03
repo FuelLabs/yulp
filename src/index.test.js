@@ -39,14 +39,6 @@ function yulCompile(source) {
   }
 }
 
-console.log(yulCompile(`
-  object "Target" {
-    code {
-      mstore(0, 0)
-    }
-  }
-`));
-
 test('yulp should be yul', t => {
   yulToYulp(`object "SimpleStore" {}`, t);
   yulToYulp(``, t);
@@ -126,11 +118,11 @@ test('yulp should be yul', t => {
   t.equal(print(compile(` code { enum Colors () } `).results),
     ` code {  } `, 'empty enum');
   t.equal(print(compile(` code { let k := mslice(0, 0) } `).results),
-    " code { \nfunction mslice(position, length) -> result {\n  if gt(length, 32) { revert(0, 0) } // protect against overflow\n\n  result := div(mload(position), exp(2, sub(256, mul(length, 8))))\n}\n\nlet k := mslice(0, 0) } ", 'mslice injection');
+    " code {\nfunction mslice(position, length) -> result {\n  if gt(length, 32) { revert(0, 0) } // protect against overflow\n\n  result := div(mload(position), exp(2, sub(256, mul(length, 8))))\n}\n\n let k := mslice(0, 0) } ", 'mslice injection');
   t.equal(print(compile(` code { let k := true let b := false } `).results),
     ` code { let k := 0x01 let b := 0x00 } `, 'boolean');
   t.equal(print(compile(` code { require(45) } `).results),
-    " code { \nfunction mslice(position, length) -> result {\n  if gt(length, 32) { revert(0, 0) } // protect against overflow\n\n  result := div(mload(position), exp(2, sub(256, mul(length, 8))))\n}\n\n\nfunction require(arg) {\n  if lt(arg, 1) {\n    revert(0, 0)\n  }\n}\nrequire(45) } ", 'require method injection');
+    " code {\nfunction require(arg) {\n  if lt(arg, 1) {\n    revert(0, 0)\n  }\n}\n require(45) } ", 'require method injection');
   t.equal(print(compile(` code {  } `).results),
     " code {  } ", 'empty code');
   t.equal(print(compile(` code { let n := sig"function nick()" } `).results),
@@ -140,19 +132,19 @@ test('yulp should be yul', t => {
   t.equal(print(compile(` code {
     mstore(0, 3, 5, 10)
   } `).results),
-    " code {  } ", 'specialized mstore');
+    " code {\n    mstore(0, 3) mstore(add(0,32), 5) mstore(add(0,64), 10)\n  } ", 'specialized mstore');
   t.equal(print(compile(` code {
     mstore( 0,3,5,10)
   } `).results),
-    " code {  } ", 'specialized mstore');
+    " code {\n    mstore( 0,3) mstore( add(0,32),5) mstore( add(0,64),10)\n  } ", 'specialized mstore');
   t.equal(print(compile(` code {
     mstore( 0,3,5)
   } `).results),
-    " code {  } ", 'specialized mstore');
+    " code {\n    mstore( 0,3) mstore( add(0,32),5)\n  } ", 'specialized mstore');
   t.equal(print(compile(` code {
     mstore( mload(add(32, 22)),3,5,10,mload(2))
   } `).results),
-    " code {  } ", 'specialized mstore');
+    " code {\n        function safeAdd(x, y) -> z {\n          z := add(x, y)\n          require(or(eq(z, x), gt(z, x)))\n        }\n        \n        function safeSub(x, y) -> z {\n          z := sub(x, y)\n          require(or(eq(z, x), lt(z, x)))\n        }\n        \n        function safeMul(x, y) -> z {\n          if gt(y, 0) {\n            z := mul(x, y)\n            require(eq(div(z, y), x))\n          }\n        }\n        \n          function safeDiv(x, y) -> z {\n            require(gt(y, 0))\n            z := div(x, y)\n          }\n          \nfunction require(arg) {\n  if lt(arg, 1) {\n    revert(0, 0)\n  }\n}\n\n    mstore( mload(safeAdd(32, 22)),3) mstore( add(mload(safeAdd(32, 22)),32),5) mstore( add(mload(safeAdd(32, 22)),64),10) mstore( add(mload(safeAdd(32, 22)),96),mload(2))\n  } ", 'specialized mstore');
   t.equal(print(compile(` code {
     mstore( 0,mload(3))
   } `).results),

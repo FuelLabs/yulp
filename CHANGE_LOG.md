@@ -17,3 +17,5 @@
 
 1. Fixed array and item hashing in mstruct
 2. Added multi mstore
+3. mstruct / mslice no longer uses safe math internally
+4. testing updated

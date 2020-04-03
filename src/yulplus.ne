@@ -111,8 +111,6 @@
 
     // if mstore(0, x, x, x) args, than process this..
     if (d[0].value === 'mstore' && d[2][3].length > 1) {
-      console.log('special mstore', d);
-
       // values after pos, x, [....]
       const secondaryValues = d[2][3].slice(1);
 
@@ -439,7 +437,6 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
       value: '',
       text: '',
       _includeMarker: 'mslice',
-      usesSafeMath: true,
       toString: () => '',
     });
   }
@@ -690,7 +687,7 @@ function ${name + '.keccak256'}(pos) -> _hash {
     dataMap[name + '.size'] = {
       method: `
 function ${name + '.size'}(pos) -> _offset {
-  _offset := safeSub(${name + '.offset'}(pos), pos)
+  _offset := sub(${name + '.offset'}(pos), pos)
 }
 `,
       required: [name + '.offset'],
