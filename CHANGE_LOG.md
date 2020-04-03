@@ -12,3 +12,8 @@
 # 0.0.3 -- Safe Math and Require Injection Fix
 
 1. Only injects methods into code blocks, not blocks
+
+# 0.0.4 -- Fixed array and item hashing in mstruct
+
+1. Fixed array and item hashing in mstruct
+2. Added multi mstore

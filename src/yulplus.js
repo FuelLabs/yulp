@@ -183,7 +183,7 @@ function id(x) { return x[0]; }
     };
 
     return _vals
-      .map(v => `safeAdd(${v.value || v}, `)
+      .map(v => `add(${v.value || v}, `)
       .concat(['0'])
       .concat(Array(_vals.length).fill(')'))
       .join('');
@@ -633,7 +633,7 @@ var grammar = {
             let dataMap = properties.reduce((acc, v, i) => Object.assign(acc, {
               [name + '.' + v.name]: {
                 size: v.value.type === 'ArraySpecifier'
-                  ? ('safeMul('
+                  ? ('mul('
                     + acc[name + '.' + v.name + '.length'].slice
                     + ', ' + v.value.value + ')')
                   : v.value,
@@ -644,8 +644,8 @@ var grammar = {
                 method: v.value.type === 'ArraySpecifier' ?
         `
         function ${name + '.' + v.name}(pos, i) -> res {
-          res := mslice(safeAdd(${name + '.' + v.name}.position(pos),
-            safeMul(i, ${v.value.value})), ${v.value.value})
+          res := mslice(add(${name + '.' + v.name}.position(pos),
+            mul(i, ${v.value.value})), ${v.value.value})
         }
         `
         : `
@@ -660,13 +660,19 @@ var grammar = {
               [name + '.' + v.name + '.keccak256']: {
                 method: `
         function ${name + '.' + v.name + '.keccak256'}(pos) -> _hash {
-          _hash := keccak256(${name + '.' + v.name + '.position'}(pos), ${name + '.' + v.name + '.size'}(pos))
+          _hash := keccak256(${name + '.' + v.name + '.position'}(pos),
+            ${v.value.type === 'ArraySpecifier'
+              ? `mul(${name + '.' + v.name + '.length'}(pos),
+                  ${name + '.' + v.name + '.size'}())`
+              : `${name + '.' + v.name + '.size'}()`})
         }
         `,
                 required: [
                   name + '.' + v.name + '.position',
                   name + '.' + v.name + '.size',
-                ],
+                ].concat(v.value.type === 'ArraySpecifier'
+                  ? [name + '.' + v.name + '.length']
+                  : []),
               },
               [name + '.' + v.name + '.position']: {
                 method: `
@@ -681,8 +687,8 @@ var grammar = {
                 method: `
         function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
         ${v.value.type === 'ArraySpecifier'
-          ? `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, safeMul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
-          : `_offset := safeAdd(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
+          ? `_offset := add(${name + '.' + v.name + '.position(pos)'}, mul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
+          : `_offset := add(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
         }
         `,
                 required: (v.value.type === 'ArraySpecifier'

@@ -126,6 +126,25 @@ object "contract" {
 }
 ```
 
+## Multi mstore sugar
+
+`mstore` can now be used as a proxy method
+
+```js
+object "contract" {
+  code {
+    mstore(30, 1, 2, 3, 4)
+
+    /*
+    mstore(30, 1)
+    mstore(add(30, 32), 2)
+    mstore(add(30, 64), 3)
+    mstore(add(30, 96), 4)
+    */
+  }
+}
+```
+
 ## Ethereum Standard ABI Signature and Topic Generation
 
 `sig" [ method abi ] "` will equate to a 4 byte method signature hex value
