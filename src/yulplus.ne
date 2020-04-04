@@ -28,7 +28,7 @@
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")", '[', ']'],
     ConstIdentifier: /(?:const)(?:\s)/,
-    keyword: ['code', 'let', "for", "function", "enum", "mstruct",
+    keyword: ['code ', 'let', "for", "function", "enum", "mstruct",
       "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });

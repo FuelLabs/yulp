@@ -19,3 +19,7 @@
 2. Added multi mstore
 3. mstruct / mslice no longer uses safe math internally
 4. testing updated
+
+# 0.0.5 -- Code keyword
+
+1. fixed code keyword usage (i.e. codecopy, calldata)

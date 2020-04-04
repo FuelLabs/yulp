@@ -46,6 +46,11 @@ test('yulp should be yul', t => {
     code {
     }
   }`, t);
+  yulToYulp(`object "SimpleStore" {
+    code {
+      codecopy(0, 0, 0)
+    }
+  }`, t);
   yulToYulp(`// hello
   /*
   code cooldfskjkdsfjk

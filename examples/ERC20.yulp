@@ -1,0 +1,143 @@
+object "ERC20" {
+  code {
+    enum Storage (balance, allowance) // storage index numbers
+
+    // constructor(address owner, uint256 totalSupply)
+    codecopy(64, sub(64, codesize()), codesize())
+
+    // stipulate initial owner and total supply
+    let owner := mload(64)
+    let totalSupply := mload(96)
+
+    // set initial owner balance at totalSupply
+    mstore(0, owner, Storage.balance)
+    sstore(keccak256(0, 64), totalSupply)
+
+    // Goto runtime
+    datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
+    return(0, datasize("Runtime"))
+  }
+  object "Runtime" {
+    code {
+        const _calldata := 128 // leave first 4 32 byte chunks for hashing, returns etc..
+
+        enum Storage (balance, allowance) // storage index numbers
+
+        calldatacopy(0, _calldata, calldatasize()) // copy all calldata to memory
+
+        switch mslice(_calldata, 4) // 4 byte calldata signature
+
+        case sig"transfer(address owner, uint256 amount) returns (bool success)" {
+            mstruct transferCalldata(sig: 4, owner: 32, amount: 32)
+
+            transferFrom(caller(),
+                transferCalldata.owner(_calldata),
+                transferCalldata.amount(_calldata))
+        }
+
+        case sig"transferFrom(address source, address destination, uint amount) returns (bool success)" {
+            mstruct transferFromCalldata(sig: 4, source: 32, destination: 32, amount: 32)
+
+            transferFrom(transferFromCalldata.source(_calldata),
+                transferFromCalldata.destination(_calldata),
+                transferFromCalldata.amount(_calldata))
+        }
+
+        case sig"approve(address destination, uint256 amount) returns (bool success)" {
+            mstruct approveCalldata(sig: 4, destination: 32, amount: 32)
+
+            sstore(mappingStorageKey2(caller(),
+                approveCalldata.destination(_calldata),
+                Storage.allowance), approveCalldata.amount(_calldata))
+
+            mstore(0, approveCalldata.amount(_calldata))
+            log3(0, 32,
+                topic"event Approval(address indexed source, address indexed destination, uint256 amount)",
+                caller(),
+                approveCalldata.destination(_calldata))
+
+            mstore(0, true)
+            return(0, 32)
+        }
+
+        case sig"balanceOf(uint256 owner) returns (uint256 balance)" {
+            mstruct balanceOfCalldata(sig: 4, owner: 32)
+
+            mstore(0, sload(mappingStorageKey(balanceOfCalldata.owner(_calldata),
+                Storage.balance)))
+            return (0, 32)
+        }
+
+        case sig"name() returns (string)" {
+            // mstore(0, "Fake Dai Stablecoin") somethig like this, proper but w/ encoding.
+            // return(0, 32)
+        }
+        case sig"symbol() returns (string)" {
+            // mstore(0, "FDAI")
+            // return(0, 32)
+        }
+        case sig"version() returns (string)" {
+            // mstore(0, "1")
+            // return(0, 32)
+        }
+        case sig"decimals() returns (string)" {
+            // mstore(0, 18)
+            // return(0, 32)
+        }
+
+        default { require(0) } // invalid method signature
+
+        stop() // stop execution here..
+
+        function transferFrom(source, destination, amount) {
+            let balanceOfSource := sload(mappingStorageKey(source, Storage.balance))
+            let allowanceOfDestination := sload(mappingStorageKey2(source, destination, Storage.balance))
+
+            // Declare uint256(-1)
+            const MAX_UINT := 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
+            // require(balanceOf[src] >= wad, "Dai/insufficient-balance");
+            require(or(gt(balanceOfSource, amount), eq(balanceOfSource, amount)))
+
+            // if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
+            if and(not(eq(source, caller())), not(eq(allowanceOfDestination, MAX_UINT))) {
+                // require(allowance[src][msg.sender] >= wad, "Dai/insufficient-allowance");
+                require(or(gt(allowanceOfDestination, amount), eq(allowanceOfDestination, amount)))
+
+                // allowance[src][msg.sender] = sub(allowance[src][msg.sender], wad);
+                sstore(mappingStorageKey2(source, destination, Storage.balance),
+                    sub(allowanceOfDestination, amount))
+            }
+
+            //  balanceOf[src] = sub(balanceOf[src], wad);
+            sstore(mappingStorageKey(source, Storage.balance),
+                sub(balanceOfSource, amount))
+
+            // balanceOf[dst] = add(balanceOf[dst], wad);
+            let balanceOfDestination := sload(mappingStorageKey(destination, Storage.balance))
+            sstore(mappingStorageKey(destination, Storage.balance),
+                add(balanceOfDestination, amount))
+
+            mstore(0, amount)
+            log3(0, 32, topic"event Transfer(address indexed source, address indexed destination, uint amount)",
+                source, destination)
+
+            mstore(0, true)
+            return(0, 32)
+        }
+
+        // Solidity Style Storage Key: mapping(bytes32 => bytes32)
+        function mappingStorageKey(key, storageIndex) -> storageKey {
+            mstore(0, key, storageIndex)
+            storageKey := keccak256(0, 64)
+        }
+
+        // Solidity Style Storage Key: mapping(bytes32 => mapping(bytes32 => bytes32)
+        function mappingStorageKey2(key, key2, storageIndex) -> storageKey {
+            mstore(0, key, storageIndex, key2)
+            mstore(96, keccak256(0, 64))
+            storageKey := keccak256(64, 64)
+        }
+    }
+  }
+}
