@@ -60,11 +60,20 @@ object "ERC20" {
             return(0, 32)
         }
 
-        case sig"balanceOf(uint256 owner) returns (uint256 balance)" {
+        case sig"balanceOf(address owner) returns (uint256 balance)" {
             mstruct balanceOfCalldata(sig: 4, owner: 32)
 
             mstore(0, sload(mappingStorageKey(balanceOfCalldata.owner(_calldata),
                 Storage.balance)))
+            return (0, 32)
+        }
+
+        case sig"allowance(address source, address owner) returns (uint256 allowance)" {
+            mstruct allowanceCalldata(sig: 4, source: 32, owner: 32)
+
+            mstore(0, sload(mappingStorageKey2(allowanceCalldata.source(_calldata),
+                allowanceCalldata.owner(_calldata),
+                Storage.allowance)))
             return (0, 32)
         }
 
