@@ -24,6 +24,7 @@ function id(x) { return x[0]; }
     "->": "->",
     ",": ",",
     ":": ":",
+    MAX_UINTLiteral: /(?:MAX_UINT)/,
     SigLiteral: /(?:sig)(?:"|').*(?:"|')/,
     TopicLiteral: /(?:topic)(?:"|').*(?:"|')/,
     codeKeyword: /(?:code)(?:\s)/,
@@ -32,8 +33,7 @@ function id(x) { return x[0]; }
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")", '[', ']'],
     ConstIdentifier: /(?:const)(?:\s)/,
-    keyword: ['code ', 'let', "for", "function", "enum", "mstruct",
-      "if", "else", "break", "continue", "default", "switch", "case"],
+    keyword: ['code ', 'let', "for", "function", "enum", "mstruct", "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
 
@@ -187,6 +187,27 @@ function id(x) { return x[0]; }
       .join('');
   }
 
+  const gte = `
+  function gte(x, y) -> result {
+    if or(gt(x, y), eq(x, y)) {
+      result := 0x01
+    }
+  }
+  `;
+  const lte = `
+  function lte(x, y) -> result {
+    if or(lt(x, y), eq(x, y)) {
+      result := 0x01
+    }
+  }
+  `;
+  const neq = `
+  function neq(x, y) -> result {
+    if not(eq(x, y)) {
+      result := 0x01
+    }
+  }
+  `;
   const sliceMethod = `
 function mslice(position, length) -> result {
   if gt(length, 32) { revert(0, 0) } // protect against overflow
@@ -245,6 +266,27 @@ var grammar = {
             .filter(v => v.usesSafeMath === true)
             .length > 0;
           let __methodToInclude = {};
+        
+          // gte
+          if (functionCalls
+            .filter(v => v.usesGTE === true)
+            .length > 0) {
+            __methodToInclude['gte'] = gte;
+          }
+        
+          // lte
+          if (functionCalls
+            .filter(v => v.usesLTE === true)
+            .length > 0) {
+            __methodToInclude['lte'] = lte;
+          }
+        
+          // NEQ
+          if (functionCalls
+            .filter(v => v.usesNEQ === true)
+            .length > 0) {
+            __methodToInclude['neq'] = neq;
+          }
         
           if (usesMath) {
             usesRequire = true;
@@ -406,6 +448,21 @@ var grammar = {
               getRequired(mstructs[v.name].required);
             }
         
+            if (v.type === 'FunctionCallIdentifier'
+              && v.name === 'lte') {
+              v.usesLTE = true;
+            }
+        
+            if (v.type === 'FunctionCallIdentifier'
+              && v.name === 'gte') {
+              v.usesGTE = true;
+            }
+        
+            if (v.type === 'FunctionCallIdentifier'
+              && v.name === 'neq') {
+              v.usesNEQ = true;
+            }
+        
             // Safe Math Multiply
             if (v.type === 'FunctionCallIdentifier'
               && v.name === 'require') {
@@ -481,16 +538,33 @@ var grammar = {
           return d;
         }
         },
+    {"name": "MAX_UINT", "symbols": [(lexer.has("MAX_UINTLiteral") ? {type: "MAX_UINTLiteral"} : MAX_UINTLiteral)], "postprocess": 
+        function(d) {
+          const val = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+          return { type: 'HexNumber', value: val, text: val };
+        }
+        },
     {"name": "SigLiteral", "symbols": [(lexer.has("SigLiteral") ? {type: "SigLiteral"} : SigLiteral)], "postprocess": 
         function(d) {
           const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1)); // remove sig" and "
-          return { type: 'HexNumber', value: sig, text: sig };
+          return { type: 'HexNumber',
+            isSignature: true,
+            signature: d[0].value.trim(),
+            value: sig,
+            text: sig,
+          };
         }
         },
     {"name": "TopicLiteral", "symbols": [(lexer.has("TopicLiteral") ? {type: "TopicLiteral"} : TopicLiteral)], "postprocess": 
         function(d) {
           const sig = stringToSig(d[0].value.trim().slice(6, -1));
-          return { type: 'HexNumber', value: sig, text: sig };
+          return {
+            type: 'HexNumber',
+            isTopic: true,
+            topic: d[0].value.trim(),
+            value: sig,
+            text: sig,
+          };
         }
         },
     {"name": "Boolean", "symbols": [(lexer.has("boolean") ? {type: "boolean"} : boolean)], "postprocess":  function(d) {
@@ -559,6 +633,7 @@ var grammar = {
     {"name": "NumericLiteral", "symbols": ["TopicLiteral"], "postprocess": id},
     {"name": "Literal", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)], "postprocess": id},
     {"name": "Literal", "symbols": ["NumericLiteral"], "postprocess": id},
+    {"name": "Literal", "symbols": ["MAX_UINT"], "postprocess": id},
     {"name": "Expression", "symbols": ["Literal"], "postprocess": id},
     {"name": "Expression", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)], "postprocess": id},
     {"name": "Expression", "symbols": ["FunctionCall"], "postprocess": id},

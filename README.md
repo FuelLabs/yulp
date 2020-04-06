@@ -145,6 +145,26 @@ object "contract" {
 }
 ```
 
+## Comparison Methods
+
+`lte`, `gte`, `neq` can now be used.
+
+```
+if and(lte(1, 10), gte(5, 2)) {
+  let k := neq(0, 1)
+}
+```
+
+## MAX_UINT
+
+`MAX_UINT` literal is now available (i.e. `uint(-1)`)
+
+```
+if lt(v, MAX_UINT) {
+  let k := 1
+}
+```
+
 ## Ethereum Standard ABI Signature and Topic Generation
 
 `sig" [ method abi ] "` will equate to a 4 byte method signature hex value

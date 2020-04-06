@@ -23,3 +23,16 @@
 # 0.0.5 -- Code keyword
 
 1. fixed code keyword usage (i.e. codecopy, calldata)
+
+# 0.0.6 -- Comparison methods and MAX_UINT
+
+1. Comparison methods: lte, gte, neq
+2. MAX_UINT (i.e. `uint(-1)`)
+3. Compiler now returns signatures and topics used in the contract
+
+  `compile(...).signatures` [ { abi: .., signature: .. }, .. ]
+  `compile(...).topics` [ { abi: ..., topic: ... }, .. ]
+
+It will simply return all signatures and topics detected.
+
+Scoping with object names coming soon.

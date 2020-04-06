@@ -81,7 +81,7 @@ test('yulp should be yul', t => {
     // Enforce transactionIndexOverflow
     assertOrFraud(or(
         secondProofIsLeftish,
-        lte(firstMetadataTransactionIndex, selectTransactionIndex(selectTransactionData(SecondProof)))   // ff // runtime code
+        lt(firstMetadataTransactionIndex, selectTransactionIndex(selectTransactionData(SecondProof)))   // ff // runtime code
     ), FraudCode_TransactionIndexOverflow)
   }`, t);
   yulToYulp(`// hello world`, t);
@@ -155,4 +155,19 @@ test('yulp should be yul', t => {
   } `).results),
     " code {\n    mstore( 0,mload(3))\n  } ", 'specialized mstore');
 
+  t.equal(print(compile(` code { if lte(1, 1) { log0(0, 0) } } `).results),
+    " code {\n  function lte(x, y) -> result {\n    if or(lt(x, y), eq(x, y)) {\n      result := 0x01\n    }\n  }\n   if lte(1, 1) { log0(0, 0) } } ", 'lte');
+  t.equal(print(compile(` code { if gte(1, 1) { log0(0, 0) } } `).results),
+    " code {\n  function gte(x, y) -> result {\n    if or(gt(x, y), eq(x, y)) {\n      result := 0x01\n    }\n  }\n   if gte(1, 1) { log0(0, 0) } } ", 'gte');
+  t.equal(print(compile(` code { if neq(1, 1) { log0(0, 0) } } `).results),
+    " code {\n  function neq(x, y) -> result {\n    if not(eq(x, y)) {\n      result := 0x01\n    }\n  }\n   if neq(1, 1) { log0(0, 0) } } ", 'neq');
+  t.equal(print(compile(` code { if eq(1, MAX_UINT) { log0(0, 0) } } `).results),
+    " code { if eq(1, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) { log0(0, 0) } } ", 'max_uint');
+
+  t.equal(print(compile(` code {
+    if and(eq(1, sig"transfer(uint256)"), eq(3, 1)) {
+      log1(0, 0, topic"event Nick(uint256)")
+    }
+  } `).results),
+    " code {\n    if and(eq(1, 0x12514bba), eq(3, 1)) {\n      log1(0, 0, 0x72566f71a6764804fe05acbf51d519980188601a575242e18965e1b97221c2c3)\n    }\n  } ", 'max_uint');
 });
