@@ -102,9 +102,6 @@ object "ERC20" {
             let balanceOfSource := sload(mappingStorageKey(source, Storage.balance))
             let allowanceOfDestination := sload(mappingStorageKey2(source, destination, Storage.balance))
 
-            // Declare uint256(-1)
-            const MAX_UINT := 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-
             // require(balanceOf[src] >= wad, "Dai/insufficient-balance");
             require(or(gt(balanceOfSource, amount), eq(balanceOfSource, amount)))
 
