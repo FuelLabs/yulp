@@ -3,7 +3,7 @@ object "ERC20" {
     enum Storage (balance, allowance) // storage index numbers
 
     // constructor(address owner, uint256 totalSupply)
-    codecopy(64, sub(64, codesize()), codesize())
+    codecopy(64, sub(codesize(), 64), 64)
 
     // stipulate initial owner and total supply
     let owner := mload(64)
@@ -23,7 +23,7 @@ object "ERC20" {
 
         enum Storage (balance, allowance) // storage index numbers
 
-        calldatacopy(0, _calldata, calldatasize()) // copy all calldata to memory
+        calldatacopy(_calldata, 0, calldatasize()) // copy all calldata to memory
 
         switch mslice(_calldata, 4) // 4 byte calldata signature
 
