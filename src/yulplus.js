@@ -25,8 +25,8 @@ function id(x) { return x[0]; }
     ",": ",",
     ":": ":",
     MAX_UINTLiteral: /(?:MAX_UINT)/,
-    SigLiteral: /(?:sig)(?:"|').*(?:"|')/,
-    TopicLiteral: /(?:topic)(?:"|').*(?:"|')/,
+    SigLiteral: /(?:sig)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
+    TopicLiteral: /(?:topic)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     codeKeyword: /(?:code)(?:\s)/,
     objectKeyword: /(?:object)(?:\s)/,
     dataKeyword: /(?:data)(?:\s)/,
@@ -44,7 +44,7 @@ function id(x) { return x[0]; }
       const inter = new utils.Interface([str]);
       return inter.events[Object.keys(inter.events)[0]].topic;
     } else {
-      const inter = new utils.Interface([str,]);
+      const inter = new utils.Interface([str]);
       return inter.functions[Object.keys(inter.functions)[0]].sighash;
     }
   }

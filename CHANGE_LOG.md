@@ -36,3 +36,4 @@
 It will simply return all signatures and topics detected.
 
 Scoping with object names coming soon.
+4. signature / topic signature fixes

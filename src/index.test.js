@@ -165,9 +165,9 @@ test('yulp should be yul', t => {
     " code { if eq(1, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) { log0(0, 0) } } ", 'max_uint');
 
   t.equal(print(compile(` code {
-    if and(eq(1, sig"transfer(uint256)"), eq(3, 1)) {
-      log1(0, 0, topic"event Nick(uint256)")
+    if and(eq(0, sig"transfer(uint256)"), eq(3, 1)) {
+      log1(0, sig"transfer(bool)", topic"event Nick(uint256)")
     }
   } `).results),
-    " code {\n    if and(eq(1, 0x12514bba), eq(3, 1)) {\n      log1(0, 0, 0x72566f71a6764804fe05acbf51d519980188601a575242e18965e1b97221c2c3)\n    }\n  } ", 'max_uint');
+    " code {\n    if and(eq(0, 0x12514bba), eq(3, 1)) {\n      log1(0, 0xac290988, 0x72566f71a6764804fe05acbf51d519980188601a575242e18965e1b97221c2c3)\n    }\n  } ", 'max_uint');
 });
