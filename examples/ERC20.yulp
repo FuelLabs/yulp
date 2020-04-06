@@ -101,14 +101,15 @@ object "ERC20" {
         function transferFrom(source, destination, amount) {
             let balanceOfSource := sload(mappingStorageKey(source, Storage.balance))
             let allowanceOfDestination := sload(mappingStorageKey2(source, destination, Storage.balance))
+            let allowanceOfSourceSender := sload(mappingStorageKey2(source, caller(), Storage.allowance))
 
             // require(balanceOf[src] >= wad, "Dai/insufficient-balance");
             require(or(gt(balanceOfSource, amount), eq(balanceOfSource, amount)))
 
             // if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
-            if and(not(eq(source, caller())), not(eq(allowanceOfDestination, MAX_UINT))) {
+            if and(neq(source, caller()), neq(allowanceOfSourceSender, MAX_UINT)) {
                 // require(allowance[src][msg.sender] >= wad, "Dai/insufficient-allowance");
-                require(or(gt(allowanceOfDestination, amount), eq(allowanceOfDestination, amount)))
+                require(gte(allowanceOfDestination, amount))
 
                 // allowance[src][msg.sender] = sub(allowance[src][msg.sender], wad);
                 sstore(mappingStorageKey2(source, destination, Storage.balance),
