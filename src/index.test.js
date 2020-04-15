@@ -111,10 +111,10 @@ test('yulp should be yul', t => {
     }
   }`, t);
 
-  t.equal(print(compile(` code { const nick := 0 } `).results), " code { let nick := 0 } ", 'const');
+  t.equal(print(compile(` code { const nick := 0 } `).results), " code {  } ", 'const');
   t.equal(print(compile(` code { const nick, cool := 0 } `).results),
-    " code { let nick, cool := 0 } ", 'const');
-  t.equal(print(compile(` code { const nick := 0xaaa } `).results), " code { let nick := 0xaaa } ", 'const');
+    " code {  } ", 'const');
+  t.equal(print(compile(` code { const nick := 0xaaa } `).results), " code {  } ", 'const');
   t.throws(() => print(compile(` code { const nick := 0xaaa const nick := 1 } `).results), 'const dub check');
   t.throws(() => print(compile(` code { const nick := 0xaaa nick := 1 } `).results), 'const dub check');
   t.throws(() => print(compile(` code { const nick := 0xaaa nick := 22 } `).results), 'const assignment check');
@@ -172,6 +172,33 @@ test('yulp should be yul', t => {
     " code {\n    if and(eq(0, 0x12514bba), eq(3, 1)) {\n      log1(0, 0xac290988, 0x72566f71a6764804fe05acbf51d519980188601a575242e18965e1b97221c2c3)\n    }\n  } ", 'max_uint');
 
   t.equal(print(compile(` code { let nick := 0xaaa { let jim := 0xbbb } } `).results), " code { let nick := 0xaaa { let jim := 0xbbb } } ", 'unnamed block');
-  t.equal(print(compile(` code { let c := str"hello world" } `).results),
-    ` code { let c := string"hello world" } `, 'string');
+
+  const errorResults = compile(` code {
+    const someLiteral := 0x005
+    const someOther := sig"hello()"
+
+    mstruct testArr (
+      q.length: 10,
+      q: [3]
+    )
+
+    function kind () {
+      let test := testArr.q.slice(0)
+      let nick := someLiteral
+      let cool := someOther
+      let another := error"this is an error"
+
+      {
+        mstore(someOther, someOther)
+      }
+
+      function someOther() {
+        let john := error"some error message that is really long"
+      }
+    }
+  } `);
+  t.equal(errorResults.errors, {"0x0ea2fcc1":"this is an error","0xebea40a6":"some error message that is really long"}, 'error reports');
+  t.equal(print(errorResults.results),
+    " code {\nfunction mslice(position, length) -> result {\n  if gt(length, 32) { revert(0, 0) } // protect against overflow\n\n  result := div(mload(position), exp(2, sub(256, mul(length, 8))))\n}\n\n\n\n        function testArr.q.slice(pos) -> res {\n          res := mslice(testArr.q.position(pos), testArr.q.length(pos))\n        }\n        \n\n\n        function testArr.q.position(pos) -> _offset {\n          _offset := add(0x0a, add(pos, 0))\n        }\n        \n\n\n        function testArr.q.length(pos) -> res {\n          res := mslice(testArr.q.length.position(pos), 10)\n        }\n        \n\n\n        function testArr.q.length.position(pos) -> _offset {\n          _offset := add(0x00, add(pos, 0))\n        }\n        \n\n    \n    \n\n    \n\n    function kind () {\n      let test := testArr.q.slice(0)\n      let nick := 0x005\n      let cool := 0x19ff1d21\n      let another := 0x0ea2fcc1\n\n      {\n        mstore(0x19ff1d21, 0x19ff1d21)\n      }\n\n      function someOther() {\n        let john := 0xebea40a6\n      }\n    }\n  } ", 'real constants if literal');
+
 });

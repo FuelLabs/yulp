@@ -21,9 +21,9 @@
     ",": ",",
     ":": ":",
     MAX_UINTLiteral: /(?:MAX_UINT)/,
-    StrLiteral: /(?:str)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     SigLiteral: /(?:sig)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     TopicLiteral: /(?:topic)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
+    ErrorLiteral: /(?:error)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     codeKeyword: /(?:code)(?:\s)/,
     objectKeyword: /(?:object)(?:\s)/,
     dataKeyword: /(?:data)(?:\s)/,
@@ -148,6 +148,11 @@
     return d;
   }
 
+  function functionDeclaration(d) {
+    d[2].type = 'FunctionIdentifier';
+    return d;
+  }
+
   function addValues(vals) {
     let cummulativeValue = utils.bigNumberify(0);
     let _vals = [0];
@@ -230,6 +235,12 @@ function require(arg) {
 
   // Include safe maths
   let identifierTree = {};
+
+  // idLiteral
+  function idLiteral(x) {
+    x[0].isLiteral = true;
+    return x[0];
+  }
 %}
 
 @lexer lexer
@@ -355,6 +366,7 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
       throw new Error(`${_type} already declared with the same identifier "${v.name}" on line ${duplicateChecks[_type + v.name].line} and ${v.line}. All ${_type} must have the unique names. Scoping coming soon.`);
     }
   };
+  let replaceLiterals = {};
 
   let _map = mapDeep(d, v => {
     if (err) { throw new Error(err) }
@@ -371,7 +383,12 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
     // Set constants in context to used
     if (v.type === 'Constant') {
       v.type = 'UsedConstant';
-      v.block = currentBlock.id;
+
+      if (v.__value.isLiteral) {
+        Object.keys(v.dataMap).map(identifier => {
+            enums[identifier] = v.__value.value;
+        });
+      }
     }
 
     if (v.type === 'UsedConstant') {
@@ -407,6 +424,7 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
       && typeof enums[v.value] !== "undefined") {
 
       // Replace out enums
+      v.type = 'Literal';
       v.value = enums[v.value];
       v.text = enums[v.value];
     }
@@ -527,15 +545,16 @@ MAX_UINT -> %MAX_UINTLiteral {%
     return { type: 'HexNumber', value: val, text: val };
   }
 %}
-StrLiteral -> %StrLiteral {%
+ErrorLiteral -> %ErrorLiteral {%
   function(d) {
-    const abi = new utils.AbiCoder();
-    const str = abi.encode(['string'], [d[0].value.trim().slice(4).slice(0, -1)]); // remove str" and "
-    return {
-      type: 'HexNumber',
-      isString: true,
-      value: str,
-      text: str,
+    const message = d[0].value.trim().slice(6).slice(0, -1);
+    const bytes4ErrorHash = utils.keccak256(utils.toUtf8Bytes(message)).slice(0, 10); // remove error" and "
+    return { type: 'HexNumber',
+      isError: true,
+      hash: bytes4ErrorHash,
+      message,
+      value: bytes4ErrorHash,
+      text: bytes4ErrorHash,
     };
   }
 %}
@@ -618,11 +637,11 @@ IfStatement -> "if" _ Expression _ Block
 NumericLiteral -> %NumberLiteral {% id %}
   | %HexNumber {% id %}
   | SigLiteral {% id %}
+  | ErrorLiteral {% id %}
   | TopicLiteral {% id %}
-  | StrLiteral {% id %}
-Literal -> %StringLiteral {% id %}
-  | NumericLiteral {% id %}
-  | MAX_UINT {% id %}
+Literal -> %StringLiteral {% idLiteral %}
+  | NumericLiteral {% idLiteral %}
+  | MAX_UINT {% idLiteral %}
 Expression -> Literal {% id %}
   | %Identifier {% id %}
   | FunctionCall {% id %}
@@ -670,6 +689,8 @@ MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ ")" {% function(d) {
     const properties = _filter(d[6], 'MemoryStructIdentifier');
     let methodList = properties.map(v => name + '.' + v.name);
 
+    // console.log('mstruct', properties);
+
     // check for array length specifiers
     for (var p = 0; p < properties.length; p++) {
       const prop = properties[p];
@@ -697,6 +718,11 @@ function ${name + '.' + v.name}(pos, i) -> res {
   res := mslice(add(${name + '.' + v.name}.position(pos),
     mul(i, ${v.value.value})), ${v.value.value})
 }
+
+function ${name + '.' + v.name}.slice(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos),
+    ${name + '.' + v.name}.length(pos))
+}
 `
 : `
 function ${name + '.' + v.name}(pos) -> res {
@@ -704,8 +730,23 @@ function ${name + '.' + v.name}(pos) -> res {
 }
 `,
         required: [
-          name + '.' + v.name + '.position',
-        ],
+          name + '.' + v.name + '.position'
+        ].concat(v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []),
+      },
+      [name + '.' + v.name + '.slice']: {
+        method: v.value.type === 'ArraySpecifier' ?
+`
+function ${name + '.' + v.name}.slice(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos), ${name + '.' + v.name}.length(pos))
+}
+` : ``,
+        required: [
+          name + '.' + v.name + '.position'
+        ].concat(v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []),
       },
       [name + '.' + v.name + '.keccak256']: {
         method: `
@@ -822,6 +863,13 @@ ConstantDeclaration -> %ConstIdentifier _ IdentifierList _ ":=" _ Expression {%
     }), {});
     d.__constant = true;
 
+    // if its a literal, we move for a global replacement block >
+    if (d[0].__value.isLiteral) {
+      d[0].value = '';
+      d[0].text = '';
+      return d[0];
+    }
+
     return d;
   }
 %}
@@ -833,11 +881,11 @@ Assignment -> IdentifierList _ ":=" _ Expression {%
     return d;
   }
 %}
-FunctionDefinition -> "function" _ %Identifier _ "(" _ IdentifierList _ ")" _ "->" _ IdentifierList _ Block
-  | "function" _ %Identifier _ "(" _ ")" _ "->" _ IdentifierList _ Block
-  | "function" _ %Identifier _ "(" _ ")" _ "->" _ "(" _ ")" _ Block
-  | "function" _ %Identifier _ "(" _ IdentifierList _ ")" _ Block
-  | "function" _ %Identifier _ "(" _ ")" _ Block
+FunctionDefinition -> "function" _ %Identifier _ "(" _ IdentifierList _ ")" _ "->" _ IdentifierList _ Block {% functionDeclaration %}
+  | "function" _ %Identifier _ "(" _ ")" _ "->" _ IdentifierList _ Block {% functionDeclaration %}
+  | "function" _ %Identifier _ "(" _ ")" _ "->" _ "(" _ ")" _ Block {% functionDeclaration %}
+  | "function" _ %Identifier _ "(" _ IdentifierList _ ")" _ Block {% functionDeclaration %}
+  | "function" _ %Identifier _ "(" _ ")" _ Block {% functionDeclaration %}
 Empty -> %space
   | %multiComment
   | %singleLineComment

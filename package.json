@@ -1,6 +1,6 @@
 {
   "name": "yulp",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A low-level highly-efficient language for the Ethereum Virtual Machine.",
   "main": "src/index.js",
   "scripts": {

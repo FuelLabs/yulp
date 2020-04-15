@@ -196,6 +196,14 @@ In-memory array like structures are defined using a `name.length` property, foll
 
 Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
 
+## Error Reporting
+
+A new experimental (post v0.0.7) feature is the `error"some message"` literal.
+
+This simply utf8 encodes the message to bytes, keccak256 hashes it and returns the first 4 bytes as an error identifier.
+
+The compiler will return an `errors` property (`{ [4 byte idenfitier]: [error message], ... }`).
+
 ```js
 object "contract" {
   code {

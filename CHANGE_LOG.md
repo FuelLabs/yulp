@@ -37,3 +37,31 @@ It will simply return all signatures and topics detected.
 
 Scoping with object names coming soon.
 4. signature / topic signature fixes
+
+# 0.0.7 Better Yul support, bugs and truly global constants
+1) Better support for no-identifier blocks (i.e. ` code { { .. } { .. } }`)
+2) Truly global `const` replacements when the value is a literal, similar to Enum
+3) Experimental `error""` literal for error reporting. Can be used to define long string error messages that get compiled down to a 4 byte identifier.
+
+Good for cases like
+
+```
+mstore(0, error"this is a really long utf8 encoded error message")
+revert(0, 32)
+```
+
+Compiler results now have an `.errors` property, with an object `{ [4 byte error hash]: 'error code message' }`.
+4) If an array is under 32 bytes, you can now use the quick .slice option as follows:
+
+mstore(0, 0x03aabbccdd)
+
+mstruct ExampleArr (
+    val.length: 1,
+    val: [1]
+)
+
+ExampleArr.val.slice(0) // will return 0xaabbccdd
+
+This is nice for byte array handling, where an mslice will can handle the value.
+
+Note, no error checking is preformed here, the user has to check if the array length is greater than 32 bytes.
