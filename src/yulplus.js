@@ -626,6 +626,7 @@ var grammar = {
     {"name": "Statement", "symbols": ["Assignment"]},
     {"name": "Statement", "symbols": ["Switch"]},
     {"name": "Statement", "symbols": ["BreakContinue"]},
+    {"name": "Statement", "symbols": ["Block"]},
     {"name": "IfStatement", "symbols": [{"literal":"if"}, "_", "Expression", "_", "Block"]},
     {"name": "NumericLiteral", "symbols": [(lexer.has("NumberLiteral") ? {type: "NumberLiteral"} : NumberLiteral)], "postprocess": id},
     {"name": "NumericLiteral", "symbols": [(lexer.has("HexNumber") ? {type: "HexNumber"} : HexNumber)], "postprocess": id},

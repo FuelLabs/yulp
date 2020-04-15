@@ -170,4 +170,6 @@ test('yulp should be yul', t => {
     }
   } `).results),
     " code {\n    if and(eq(0, 0x12514bba), eq(3, 1)) {\n      log1(0, 0xac290988, 0x72566f71a6764804fe05acbf51d519980188601a575242e18965e1b97221c2c3)\n    }\n  } ", 'max_uint');
+
+  t.equal(print(compile(` code { let nick := 0xaaa { let jim := 0xbbb } } `).results), " code { let nick := 0xaaa { let jim := 0xbbb } } ", 'unnamed block');
 });
