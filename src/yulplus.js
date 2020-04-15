@@ -25,6 +25,7 @@ function id(x) { return x[0]; }
     ",": ",",
     ":": ":",
     MAX_UINTLiteral: /(?:MAX_UINT)/,
+    StrLiteral: /(?:str)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     SigLiteral: /(?:sig)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     TopicLiteral: /(?:topic)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     codeKeyword: /(?:code)(?:\s)/,
@@ -544,6 +545,18 @@ var grammar = {
           return { type: 'HexNumber', value: val, text: val };
         }
         },
+    {"name": "StrLiteral", "symbols": [(lexer.has("StrLiteral") ? {type: "StrLiteral"} : StrLiteral)], "postprocess": 
+        function(d) {
+          const abi = new utils.AbiCoder();
+          const str = abi.encode(['string'], [d[0].value.trim().slice(4).slice(0, -1)]); // remove str" and "
+          return {
+            type: 'HexNumber',
+            isString: true,
+            value: str,
+            text: str,
+          };
+        }
+        },
     {"name": "SigLiteral", "symbols": [(lexer.has("SigLiteral") ? {type: "SigLiteral"} : SigLiteral)], "postprocess": 
         function(d) {
           const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1)); // remove sig" and "
@@ -631,6 +644,7 @@ var grammar = {
     {"name": "NumericLiteral", "symbols": [(lexer.has("HexNumber") ? {type: "HexNumber"} : HexNumber)], "postprocess": id},
     {"name": "NumericLiteral", "symbols": ["SigLiteral"], "postprocess": id},
     {"name": "NumericLiteral", "symbols": ["TopicLiteral"], "postprocess": id},
+    {"name": "NumericLiteral", "symbols": ["StrLiteral"], "postprocess": id},
     {"name": "Literal", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)], "postprocess": id},
     {"name": "Literal", "symbols": ["NumericLiteral"], "postprocess": id},
     {"name": "Literal", "symbols": ["MAX_UINT"], "postprocess": id},

@@ -21,6 +21,7 @@
     ",": ",",
     ":": ":",
     MAX_UINTLiteral: /(?:MAX_UINT)/,
+    StrLiteral: /(?:str)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     SigLiteral: /(?:sig)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     TopicLiteral: /(?:topic)"(?:\\["bfnrt\/\\]|\\u[a-fA-F0-9]{4}|[^"\\])*"/,
     codeKeyword: /(?:code)(?:\s)/,
@@ -526,6 +527,18 @@ MAX_UINT -> %MAX_UINTLiteral {%
     return { type: 'HexNumber', value: val, text: val };
   }
 %}
+StrLiteral -> %StrLiteral {%
+  function(d) {
+    const abi = new utils.AbiCoder();
+    const str = abi.encode(['string'], [d[0].value.trim().slice(4).slice(0, -1)]); // remove str" and "
+    return {
+      type: 'HexNumber',
+      isString: true,
+      value: str,
+      text: str,
+    };
+  }
+%}
 SigLiteral -> %SigLiteral {%
   function(d) {
     const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1)); // remove sig" and "
@@ -605,6 +618,7 @@ NumericLiteral -> %NumberLiteral {% id %}
   | %HexNumber {% id %}
   | SigLiteral {% id %}
   | TopicLiteral {% id %}
+  | StrLiteral {% id %}
 Literal -> %StringLiteral {% id %}
   | NumericLiteral {% id %}
   | MAX_UINT {% id %}
