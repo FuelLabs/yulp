@@ -86,6 +86,7 @@ var grammar = {
     {"name": "Statement", "symbols": ["Assignment"]},
     {"name": "Statement", "symbols": ["Switch"]},
     {"name": "Statement", "symbols": ["BreakContinue"]},
+    {"name": "Statement", "symbols": ["Block"]},
     {"name": "IfStatement", "symbols": [{"literal":"if"}, "_", "Expression", "_", "Block"]},
     {"name": "Literal", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
     {"name": "Literal", "symbols": [(lexer.has("NumberLiteral") ? {type: "NumberLiteral"} : NumberLiteral)]},
