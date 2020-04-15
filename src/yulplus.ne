@@ -613,6 +613,7 @@ Statement -> FunctionDefinition
   | Assignment
   | Switch
   | BreakContinue
+  | Block
 IfStatement -> "if" _ Expression _ Block
 NumericLiteral -> %NumberLiteral {% id %}
   | %HexNumber {% id %}

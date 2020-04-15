@@ -60,6 +60,7 @@ Statement -> FunctionDefinition
   | Assignment
   | Switch
   | BreakContinue
+  | Block
 IfStatement -> "if" _ Expression _ Block
 Literal -> %StringLiteral
   | %NumberLiteral
