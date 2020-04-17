@@ -423,6 +423,8 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
     if (v.type === 'Identifier'
       && typeof enums[v.value] !== "undefined") {
 
+      console.log('identifier', v);
+
       // Replace out enums
       v.type = 'Literal';
       v.value = enums[v.value];
@@ -619,7 +621,8 @@ EnumDeclaration -> "enum" _ %Identifier _ "(" _ ")" {%
 ForLoop -> "for" _ "{" (_ Statement):* _ "}" _ Expression _ "{" (_ Statement):* _ "}" _ Block
 BreakContinue -> "break" | "continue"
 SwitchDefinition -> Case | Default
-Case -> "case" _ Literal _ Block
+CaseLiteral -> Literal | %Identifier
+Case -> "case" _ CaseLiteral _ Block
 Default -> "default" _ Block
 Statement -> FunctionDefinition
   | FunctionCall

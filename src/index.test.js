@@ -177,6 +177,11 @@ test('yulp should be yul', t => {
     const someLiteral := 0x005
     const someOther := sig"hello()"
 
+    enum Numbers (
+      zero,
+      one
+    )
+
     mstruct testArr (
       q.length: 10,
       q: [3]
@@ -194,6 +199,12 @@ test('yulp should be yul', t => {
 
       function someOther() {
         let john := error"some error message that is really long"
+
+        switch john
+        case Numbers.zero {
+        }
+        case Numbers.one {
+        }
       }
     }
   } `);

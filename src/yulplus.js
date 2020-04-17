@@ -438,6 +438,8 @@ var grammar = {
             if (v.type === 'Identifier'
               && typeof enums[v.value] !== "undefined") {
         
+              console.log('identifier', v);
+        
               // Replace out enums
               v.type = 'Literal';
               v.value = enums[v.value];
@@ -645,7 +647,9 @@ var grammar = {
     {"name": "BreakContinue", "symbols": [{"literal":"continue"}]},
     {"name": "SwitchDefinition", "symbols": ["Case"]},
     {"name": "SwitchDefinition", "symbols": ["Default"]},
-    {"name": "Case", "symbols": [{"literal":"case"}, "_", "Literal", "_", "Block"]},
+    {"name": "CaseLiteral", "symbols": ["Literal"]},
+    {"name": "CaseLiteral", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
+    {"name": "Case", "symbols": [{"literal":"case"}, "_", "CaseLiteral", "_", "Block"]},
     {"name": "Default", "symbols": [{"literal":"default"}, "_", "Block"]},
     {"name": "Statement", "symbols": ["FunctionDefinition"]},
     {"name": "Statement", "symbols": ["FunctionCall"]},
