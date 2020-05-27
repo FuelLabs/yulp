@@ -276,6 +276,27 @@ Or just send us some *Dai*, *USDC* or *Ether*:
 
 **0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C** [Etherscan](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
 
+## Coming Soon
+
+```js
+mstruct BasicRecursiveStructures ( // better structure description
+  block: BlockHeader,
+  root: RootHeader,
+  proof: MerkleProof,
+  leaf: TransactionLeaf,
+  token: 32
+)
+
+mstruct SwitchStatements ( // special switch case
+  data.switch: 1, // switch 0, 1, 2 for options below
+  data: [TransactionInputUTXO,TransactionInputHTLC,TransactionDeposit]
+)
+
+mstruct FixedLengthArrays ( // special switch case
+  someArr: (7)[32],
+)
+```
+
 ## Licence
 
 This project is licensed under the Apache-2.0 license, Copyright (c) 2020 Fuel labs. For more information see LICENSE

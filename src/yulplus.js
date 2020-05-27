@@ -46,6 +46,13 @@ function id(x) { return x[0]; }
       return inter.events[Object.keys(inter.events)[0]].topic;
     } else {
       const inter = new utils.Interface([str]);
+
+      // if constructor
+      if (Object.keys(inter.functions).length === 0) {
+        return '0x00';
+      }
+
+      // if normal method
       return inter.functions[Object.keys(inter.functions)[0]].sighash;
     }
   }
@@ -113,6 +120,16 @@ function id(x) { return x[0]; }
   function functionCall(d) {
     d[0].type = 'FunctionCallIdentifier';
     d[0].name = d[0].value;
+
+    if (d[0].value === 'require' && d[2][3].length < 1) {
+      const commaZero = {
+        value: ', 0',
+        text: ', 0',
+        toString: () => ', 0',
+      };
+
+      d[2][3] = commaZero;
+    }
 
     // if mstore(0, x, x, x) args, than process this..
     if (d[0].value === 'mstore' && d[2][3].length > 1) {
@@ -209,18 +226,13 @@ function id(x) { return x[0]; }
   `;
   const neq = `
   function neq(x, y) -> result {
-    if not(eq(x, y)) {
-      result := 0x01
-    }
+    result := iszero(eq(x, y))
   }
   `;
   const sliceMethod = `
 function mslice(position, length) -> result {
-  if gt(length, 32) { revert(0, 0) } // protect against overflow
-
   result := div(mload(position), exp(2, sub(256, mul(length, 8))))
 }
-
 `;
   const sliceObject = {
     value: sliceMethod,
@@ -230,9 +242,10 @@ function mslice(position, length) -> result {
   };
 
   const requireMethod = `
-function require(arg) {
+function require(arg, message) {
   if lt(arg, 1) {
-    revert(0, 0)
+    mstore(0, message)
+    revert(0, 32)
   }
 }
 `;
@@ -244,6 +257,202 @@ function require(arg) {
   function idLiteral(x) {
     x[0].isLiteral = true;
     return x[0];
+  }
+
+  function mstruct(d, stubs, prefix, startingPosition, parentName) {
+    const name = prefix || d[2].value;
+    const properties = _filter(d[6], 'MemoryStructIdentifier');
+    const structPropMap = properties
+      .map((v, i) => ({ name: v.name, type: v.type, value: v.value, before: properties[i - 1] }))
+      .filter(v => v.value.type === 'Identifier')
+      .map(v => mstruct(stubs[v.value.value], stubs, name + '.' + v.name, v.before, name))
+      .reduce((acc, v) => ({ ...acc, [v.name]: {
+        // size: name + '.' + v.name + '.size(pos)', // maybe add normal method with size specieir here..
+        dataMap: { ...v.dataMap, [v.name]: {
+          size: `${v.name}.size(${v.name}.position(pos))`,
+          method: '',
+          required: [`${v.name}.size`, `${v.name}.position`],
+        }},
+      } }), {});
+
+    const pos = startingPosition && parentName
+      ? parentName + '.' + startingPosition.name + '.offset(pos)'
+      : 'pos';
+    const posRequired = pos !== 'pos' ? [pos.slice(0, -5)] : [];
+
+    let methodList = properties
+      .map(v => name + '.' + v.name);
+
+    // check for array length specifiers
+    for (var p = 0; p < properties.length; p++) {
+      const prop = properties[p];
+
+      if (prop.value.type === 'ArraySpecifier'
+        && methodList.indexOf(name + '.' + prop.name + '.length') === -1) {
+        throw new Error(`In memory struct "${name}", array property "${prop.name}" requires a ".length" property.`);
+      }
+    }
+
+    let dataMap = properties
+      .reduce((acc, v, i) => Object.assign(acc,
+        v.value.type === 'Identifier' ? structPropMap[name + '.' + v.name].dataMap : {
+      [name + '.' + v.name]: {
+        size: v.value.type === 'ArraySpecifier'
+          ? ('mul('
+            + acc[name + '.' + v.name + '.length'].slice
+            + ', ' + v.value.value + ')')
+          : v.value,
+        offset: addValues(methodList.slice(0, i)
+          .map(name => acc[name].size)),
+        slice: `mslice(${addValues(['pos'].concat(methodList.slice(0, i)
+          .map(name => acc[name].size)))}, ${v.value.value})`,
+        method: v.value.type === 'ArraySpecifier' ?
+`
+function ${name + '.' + v.name}(pos, i) -> res {
+  res := mslice(add(${name + '.' + v.name}.position(pos),
+    mul(i, ${v.value.value})), ${v.value.value})
+}
+
+function ${name + '.' + v.name}.slice(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos),
+    ${name + '.' + v.name}.length(pos))
+}
+`
+: `
+function ${name + '.' + v.name}(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos), ${v.value.value})
+}
+`,
+        required: [
+          name + '.' + v.name + '.position'
+        ].concat(v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []),
+      },
+      [name + '.' + v.name + '.slice']: {
+        method: v.value.type === 'ArraySpecifier' ?
+`
+function ${name + '.' + v.name}.slice(pos) -> res {
+  res := mslice(${name + '.' + v.name}.position(pos), ${name + '.' + v.name}.length(pos))
+}
+` : ``,
+        required: [
+          name + '.' + v.name + '.position'
+        ].concat(v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []),
+      },
+      [name + '.' + v.name + '.keccak256']: {
+        method: `
+function ${name + '.' + v.name + '.keccak256'}(pos) -> _hash {
+  _hash := keccak256(${name + '.' + v.name + '.position'}(pos),
+    ${v.value.type === 'ArraySpecifier'
+      ? `mul(${name + '.' + v.name + '.length'}(pos),
+          ${name + '.' + v.name + '.size'}())`
+      : `${name + '.' + v.name + '.size'}()`})
+}
+`,
+        required: [
+          name + '.' + v.name + '.position',
+          name + '.' + v.name + '.size',
+        ].concat(v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length']
+          : []),
+      },
+      [name + '.' + v.name + '.position']: {
+        method: `
+function ${name + '.' + v.name + '.position'}(pos) -> _offset {
+  _offset := ${addValues([pos].concat(methodList.slice(0, i)
+    .map(name => acc[name].size)))}
+}
+`,
+        required: posRequired.concat(...methodList.slice(0, i)
+          .map(name => acc[name].required)),
+      },
+      [name + '.' + v.name + '.offset']: {
+        method: `
+function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
+${v.value.type === 'ArraySpecifier'
+  ? `_offset := add(${name + '.' + v.name + '.position(pos)'}, mul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
+  : `_offset := add(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
+}
+`,
+        required: (v.value.type === 'ArraySpecifier'
+          ? [name + '.' + v.name + '.length', name + '.' + v.name + '.length.position']
+          : []).concat([
+            name + '.' + v.name + '.position',
+          ]),
+      },
+      [name + '.' + v.name + '.index']: {
+        method: `
+function ${name + '.' + v.name + '.index'}() -> _index {
+  _index := ${i}
+}
+`,
+        required: [],
+      },
+      [name + '.' + v.name + '.size']: {
+        method: `
+function ${name + '.' + v.name + '.size'}() -> _size {
+  _size := ${v.value.value}
+}
+`,
+        required: [],
+      },
+    }), {});
+
+    dataMap[name + '.keccak256'] = {
+      method: `
+function ${name + '.keccak256'}(pos) -> _hash {
+  _hash := keccak256(pos, ${name + '.size'}(pos))
+}
+`,
+      required: [name + '.size', name + '.offset'],
+    };
+
+    dataMap[name + '.size'] = {
+      method: `
+function ${name + '.size'}(pos) -> _offset {
+  _offset := sub(${name + '.offset'}(pos), pos)
+}
+`,
+      required: [name + '.offset'],
+    };
+
+    const lastOffset = methodList[methodList.length - 1]
+      .slice(-7) === '.offset' ? '' : '.offset';
+
+    dataMap[name + '.offset'] = {
+      method: `
+function ${name + '.offset'}(pos) -> _offset {
+  _offset := ${methodList.length
+  ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
+}
+`,
+      required: methodList.length > 0
+        ? [methodList[methodList.length - 1] + '.offset']
+            .concat(dataMap[methodList[methodList.length - 1] + lastOffset].required)
+        : [],
+    };
+
+    dataMap[name + '.position'] = {
+      method: `
+function ${name + '.position'}(pos) -> _offset {
+  _offset := ${pos}
+}
+`,
+      required: [],
+    };
+
+    return {
+      type: 'MemoryStructDeclaration',
+      name,
+      dataMap,
+      value: '',
+      text: '',
+      line: d[2].line,
+      toString: () => '',
+    };
   }
 var grammar = {
     Lexer: lexer,
@@ -305,14 +514,14 @@ var grammar = {
             __methodToInclude['safeAdd'] = `
         function safeAdd(x, y) -> z {
           z := add(x, y)
-          require(or(eq(z, x), gt(z, x)))
+          require(or(eq(z, x), gt(z, x)), 0)
         }
         `;
         
             __methodToInclude['safeSub'] = `
         function safeSub(x, y) -> z {
           z := sub(x, y)
-          require(or(eq(z, x), lt(z, x)))
+          require(or(eq(z, x), lt(z, x)), 0)
         }
         `;
         
@@ -320,14 +529,14 @@ var grammar = {
         function safeMul(x, y) -> z {
           if gt(y, 0) {
             z := mul(x, y)
-            require(eq(div(z, y), x))
+            require(eq(div(z, y), x), 0)
           }
         }
         `;
         
             __methodToInclude['safeDiv'] = `
           function safeDiv(x, y) -> z {
-            require(gt(y, 0))
+            require(gt(y, 0), 0)
             z := div(x, y)
           }
           `;
@@ -369,9 +578,10 @@ var grammar = {
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
           const constants = _filter(d, 'Constant')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
-          const mstructs = _filter(d, 'MemoryStructDeclaration')
+          let mstructs = _filter(d, 'MemoryStructDeclaration')
             .reduce((acc, v) => Object.assign(acc, v.dataMap), {});
           let methodToInclude = {};
+          let stubs = {};
           const duplicateChecks = {};
           let err = null;
           const dubcheck = (_type, v) => {
@@ -385,6 +595,19 @@ var grammar = {
         
           let _map = mapDeep(d, v => {
             if (err) { throw new Error(err) }
+        
+            if (v.type === 'MemoryStructStub') {
+              const struc = mstruct(v.d, stubs);
+              v.type = 'MemoryStructDeclaration';
+              v.name = struc.name;
+              v.dataMap = struc.dataMap;
+              v.value = struc.value;
+              v.text = struc.text;
+              v.line = struc.line;
+              v.toString = struc.toString;
+              mstructs = { ...mstructs, ...v.dataMap };
+              stubs = { ...stubs, [v.name]: v.d };
+            }
         
             // We have now set within this block context, this enum to Used
             if (v.type === 'Enum') {
@@ -438,8 +661,6 @@ var grammar = {
             if (v.type === 'Identifier'
               && typeof enums[v.value] !== "undefined") {
         
-              console.log('identifier', v);
-        
               // Replace out enums
               v.type = 'Literal';
               v.value = enums[v.value];
@@ -488,6 +709,13 @@ var grammar = {
             if (v.type === 'FunctionCallIdentifier'
               && v.name === 'require') {
               v.usesRequire = true;
+            }
+        
+            if (v.type === 'FunctionCallIdentifier'
+              && v.name === 'unsafeAdd') {
+              v.text = 'add';
+              v.value = 'add';
+              v.toString = () => 'add';
             }
         
             if (v.type === 'FunctionCallIdentifier'
@@ -691,16 +919,18 @@ var grammar = {
           };
         }
         },
+    {"name": "StructIdentifier", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)], "postprocess": id},
     {"name": "IdentifierList$ebnf$1", "symbols": []},
     {"name": "IdentifierList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
     {"name": "IdentifierList$ebnf$1", "symbols": ["IdentifierList$ebnf$1", "IdentifierList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "IdentifierList", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "IdentifierList$ebnf$1"], "postprocess": extractArray},
+    {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["StructIdentifier"]},
     {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["NumericLiteral"]},
     {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["ArraySpecifier"]},
     {"name": "MemoryStructIdentifier", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":":"}, "_", "MemoryStructIdentifier$subexpression$1"], "postprocess": 
         function (d) {
           // check memory struct nuermic literal or identifier
-          const size = utils.bigNumberify(d[4][0].value);
+          // const size = utils.bigNumberify(d[4][0].value);
         
           return {
             type: 'MemoryStructIdentifier',
@@ -725,169 +955,16 @@ var grammar = {
             };
         } },
     {"name": "MemoryStructDeclaration", "symbols": [{"literal":"mstruct"}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", "MemoryStructList", "_", {"literal":")"}], "postprocess": 
-          function (d) {
-            const name = d[2].value;
-            const properties = _filter(d[6], 'MemoryStructIdentifier');
-            let methodList = properties.map(v => name + '.' + v.name);
-        
-            // console.log('mstruct', properties);
-        
-            // check for array length specifiers
-            for (var p = 0; p < properties.length; p++) {
-              const prop = properties[p];
-        
-              if (prop.value.type === 'ArraySpecifier'
-                && methodList.indexOf(name + '.' + prop.name + '.length') === -1) {
-                throw new Error(`In memory struct "${name}", array property "${prop.name}" requires a ".length" property.`);
-              }
-            }
-        
-            let dataMap = properties.reduce((acc, v, i) => Object.assign(acc, {
-              [name + '.' + v.name]: {
-                size: v.value.type === 'ArraySpecifier'
-                  ? ('mul('
-                    + acc[name + '.' + v.name + '.length'].slice
-                    + ', ' + v.value.value + ')')
-                  : v.value,
-                offset: addValues(methodList.slice(0, i)
-                  .map(name => acc[name].size)),
-                slice: `mslice(${addValues(['pos'].concat(methodList.slice(0, i)
-                  .map(name => acc[name].size)))}, ${v.value.value})`,
-                method: v.value.type === 'ArraySpecifier' ?
-        `
-        function ${name + '.' + v.name}(pos, i) -> res {
-          res := mslice(add(${name + '.' + v.name}.position(pos),
-            mul(i, ${v.value.value})), ${v.value.value})
+        function (d) {
+          return {
+            type: 'MemoryStructStub',
+            d,
+            value: '',
+            text: '',
+            line: d[2].line,
+            toString: () => '',
+          };
         }
-        
-        function ${name + '.' + v.name}.slice(pos) -> res {
-          res := mslice(${name + '.' + v.name}.position(pos),
-            ${name + '.' + v.name}.length(pos))
-        }
-        `
-        : `
-        function ${name + '.' + v.name}(pos) -> res {
-          res := mslice(${name + '.' + v.name}.position(pos), ${v.value.value})
-        }
-        `,
-                required: [
-                  name + '.' + v.name + '.position'
-                ].concat(v.value.type === 'ArraySpecifier'
-                  ? [name + '.' + v.name + '.length']
-                  : []),
-              },
-              [name + '.' + v.name + '.slice']: {
-                method: v.value.type === 'ArraySpecifier' ?
-        `
-        function ${name + '.' + v.name}.slice(pos) -> res {
-          res := mslice(${name + '.' + v.name}.position(pos), ${name + '.' + v.name}.length(pos))
-        }
-        ` : ``,
-                required: [
-                  name + '.' + v.name + '.position'
-                ].concat(v.value.type === 'ArraySpecifier'
-                  ? [name + '.' + v.name + '.length']
-                  : []),
-              },
-              [name + '.' + v.name + '.keccak256']: {
-                method: `
-        function ${name + '.' + v.name + '.keccak256'}(pos) -> _hash {
-          _hash := keccak256(${name + '.' + v.name + '.position'}(pos),
-            ${v.value.type === 'ArraySpecifier'
-              ? `mul(${name + '.' + v.name + '.length'}(pos),
-                  ${name + '.' + v.name + '.size'}())`
-              : `${name + '.' + v.name + '.size'}()`})
-        }
-        `,
-                required: [
-                  name + '.' + v.name + '.position',
-                  name + '.' + v.name + '.size',
-                ].concat(v.value.type === 'ArraySpecifier'
-                  ? [name + '.' + v.name + '.length']
-                  : []),
-              },
-              [name + '.' + v.name + '.position']: {
-                method: `
-        function ${name + '.' + v.name + '.position'}(pos) -> _offset {
-          _offset := ${addValues(['pos'].concat(methodList.slice(0, i)
-            .map(name => acc[name].size)))}
-        }
-        `,
-                required: [],
-              },
-              [name + '.' + v.name + '.offset']: {
-                method: `
-        function ${name + '.' + v.name + '.offset'}(pos) -> _offset {
-        ${v.value.type === 'ArraySpecifier'
-          ? `_offset := add(${name + '.' + v.name + '.position(pos)'}, mul(${name + '.' + v.name + '.length(pos)'}, ${v.value.value}))`
-          : `_offset := add(${name + '.' + v.name + '.position(pos)'}, ${v.value.value})`}
-        }
-        `,
-                required: (v.value.type === 'ArraySpecifier'
-                  ? [name + '.' + v.name + '.length', name + '.' + v.name + '.length.position']
-                  : []).concat([
-                    name + '.' + v.name + '.position',
-                  ]),
-              },
-              [name + '.' + v.name + '.index']: {
-                method: `
-        function ${name + '.' + v.name + '.index'}() -> _index {
-          _index := ${i}
-        }
-        `,
-                required: [],
-              },
-              [name + '.' + v.name + '.size']: {
-                method: `
-        function ${name + '.' + v.name + '.size'}() -> _size {
-          _size := ${v.value.value}
-        }
-        `,
-                required: [],
-              },
-            }), {});
-        
-            dataMap[name + '.keccak256'] = {
-              method: `
-        function ${name + '.keccak256'}(pos) -> _hash {
-          _hash := keccak256(pos, ${name + '.size'}(pos))
-        }
-        `,
-              required: [name + '.size', name + '.offset'],
-            };
-        
-            dataMap[name + '.size'] = {
-              method: `
-        function ${name + '.size'}(pos) -> _offset {
-          _offset := sub(${name + '.offset'}(pos), pos)
-        }
-        `,
-              required: [name + '.offset'],
-            };
-        
-            dataMap[name + '.offset'] = {
-              method: `
-        function ${name + '.offset'}(pos) -> _offset {
-          _offset := ${methodList.length
-          ? methodList[methodList.length - 1] + '.offset(pos)' : '0'}
-        }
-        `,
-              required: methodList.length > 0
-                ? [methodList[methodList.length - 1] + '.offset']
-                    .concat(dataMap[methodList[methodList.length - 1] + '.offset'].required)
-                : [],
-            };
-        
-            return {
-              type: 'MemoryStructDeclaration',
-              name,
-              dataMap,
-              value: '',
-              text: '',
-              line: d[2].line,
-              toString: () => '',
-            };
-          }
         },
     {"name": "VariableDeclaration", "symbols": [{"literal":"let"}, "_", "IdentifierList", "_", {"literal":":="}, "_", "Expression"]},
     {"name": "ConstantDeclaration", "symbols": [(lexer.has("ConstIdentifier") ? {type: "ConstIdentifier"} : ConstIdentifier), "_", "IdentifierList", "_", {"literal":":="}, "_", "Expression"], "postprocess": 

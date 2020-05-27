@@ -9,12 +9,24 @@ const source = yulp.compile(`
       code {
         calldatacopy(0, 0, 36) // write calldata to memory
 
+        mstruct Something(
+          val: 32
+          someArr.length: 12,
+          someArr: [10]
+        )
+
         mstruct Calldata(
-          sig: 4,
+          cool: 1,
+          sig: Something,
+          sig2: Something,
           val: 32
         )
 
-        switch Calldata.sig(0) // select signature from memory
+        let chunkA := add(pos, 33)
+        let chunkB := add(12, mul(10, mslice(chunkA, 12)))
+        let finalPos := add(chunkA, chunkB)
+
+        switch Calldata.sig2.position(0) // select signature from memory
 
         case sig"function store(uint256 val)" { // new signature method
           sstore(0, Calldata.val(0)) // sstore calldata value

@@ -173,6 +173,8 @@ test('yulp should be yul', t => {
 
   t.equal(print(compile(` code { let nick := 0xaaa { let jim := 0xbbb } } `).results), " code { let nick := 0xaaa { let jim := 0xbbb } } ", 'unnamed block');
 
+  t.equal(print(compile(` code { require(0, error"nick") } `).results), " code {\nfunction require(arg, message) {\n  if lt(arg, 1) {\n    mstore(0, message)\n    revert(0, 32)\n  }\n}\n require(0, 0x5d5727cb) } ", 'unnamed block');
+
   const errorResults = compile(` code {
     const someLiteral := 0x005
     const someOther := sig"hello()"

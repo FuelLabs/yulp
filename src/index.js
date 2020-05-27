@@ -49,10 +49,10 @@ module.exports = {
     const signatures = _filter(result.results, true, 'isSignature')
       .map(v => ({ abi: v.signature, signature: v.value }));
     const errors = _filter(result.results, true, 'isError')
-      .reduce((acc, v) => Object.assign(acc, { [v.hash]: v.message }), {});
+      .reduce((acc, v) => Object.assign(acc, { [v.message]: v.hash, [v.hash]: v.message }), {});
     const topics = _filter(result.results, true, 'isTopic')
       .map(v => ({ abi: v.topic, topic: v.value }));
-      
+
     result.signatures = signatures;
     result.topics = topics;
     result.errors = errors;
