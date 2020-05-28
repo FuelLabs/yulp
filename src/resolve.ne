@@ -6,7 +6,6 @@
   const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
     .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
 
-
   function flatDeep(input) {
     const stack = [...input];
     const res = [];
@@ -105,7 +104,18 @@ Page -> Yul {% function(d) {
   });
 } %}
 Yul -> (_ Chunk):* _ {% function(d) { return d; } %}
-Chunk -> ObjectDefinition | CodeDefinition {% function(d) { return d; } %}
+Chunk -> ObjectDefinition | CodeDefinition | ImportStatement {% function(d) { return d; } %}
+Imports -> %StringLiteral (_ "," _ %StringLiteral):* {% function (d) { return d; } %}
+ImportStatement -> "import" _ %StringLiteral {% function(d) {
+  const file = d[2].value.slice(1, -1);
+
+  return {
+    value: '',
+    text: '',
+    file,
+    type: 'ImportStatement',
+  };
+} %}
 ObjectList -> %StringLiteral (_ "," _ %StringLiteral):* {% function(d) {
   return _filter(d, 'StringLiteral').map((v, i) => ({
     type: 'ObjectExtends',

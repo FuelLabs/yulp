@@ -1,0 +1,9 @@
+object "Another3" {
+  code {
+    mstruct Nick (
+      cool: 10
+    )
+
+    let boooo := 1
+  }
+}

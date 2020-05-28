@@ -1,0 +1,11 @@
+import "./cool.yulp"
+
+object "Another" is "Another3" {
+  code {
+    mstruct Nick2 (
+      cool: 10
+    )
+
+    let boooo := Nick.cool(3)
+  }
+}

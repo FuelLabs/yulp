@@ -27,6 +27,7 @@
     "ethers": "^4.0.39",
     "moo": "^0.5.1",
     "nearley": "^2.19.0",
+    "parse-es6-imports": "^1.0.1",
     "rfdc": "^1.1.4"
   },
   "devDependencies": {

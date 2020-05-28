@@ -10,7 +10,6 @@ function id(x) { return x[0]; }
   const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
     .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
 
-
   function flatDeep(input) {
     const stack = [...input];
     const res = [];
@@ -112,7 +111,22 @@ var grammar = {
     {"name": "Yul$ebnf$1", "symbols": ["Yul$ebnf$1", "Yul$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "Yul", "symbols": ["Yul$ebnf$1", "_"], "postprocess": function(d) { return d; }},
     {"name": "Chunk", "symbols": ["ObjectDefinition"]},
-    {"name": "Chunk", "symbols": ["CodeDefinition"], "postprocess": function(d) { return d; }},
+    {"name": "Chunk", "symbols": ["CodeDefinition"]},
+    {"name": "Chunk", "symbols": ["ImportStatement"], "postprocess": function(d) { return d; }},
+    {"name": "Imports$ebnf$1", "symbols": []},
+    {"name": "Imports$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
+    {"name": "Imports$ebnf$1", "symbols": ["Imports$ebnf$1", "Imports$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "Imports", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "Imports$ebnf$1"], "postprocess": function (d) { return d; }},
+    {"name": "ImportStatement", "symbols": [{"literal":"import"}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)], "postprocess":  function(d) {
+          const file = d[2].value.slice(1, -1);
+        
+          return {
+            value: '',
+            text: '',
+            file,
+            type: 'ImportStatement',
+          };
+        } },
     {"name": "ObjectList$ebnf$1", "symbols": []},
     {"name": "ObjectList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
     {"name": "ObjectList$ebnf$1", "symbols": ["ObjectList$ebnf$1", "ObjectList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},

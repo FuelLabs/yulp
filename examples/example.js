@@ -1,15 +1,8 @@
 const yulp = require('../src/index');
+const fs = require('fs');
 const source = yulp.compile(`
-
-  object "Another" {
-    code {
-      mstruct Nick (
-        cool: 10
-      )
-
-      let boooo := 1
-    }
-  }
+  import "./another.yulp"
+  import "./cool.yulp"
 
   object "CoolBeans" {
     code {
@@ -63,6 +56,6 @@ const source = yulp.compile(`
       }
     }
   }
-  `);
+  `, fs, './examples');
 
 console.log(yulp.print(source.results));
