@@ -3,6 +3,10 @@ const source = yulp.compile(`
 
   object "Another" {
     code {
+      mstruct Nick (
+        cool: 10
+      )
+
       let boooo := 1
     }
   }
@@ -15,7 +19,7 @@ const source = yulp.compile(`
 
   object "YesSir" is "CoolBeans", "Another" {
     code {
-      let b := 2
+      let b := add(yes(), Nick.cool(0))
       function no() {}
     }
   }
@@ -25,7 +29,7 @@ const source = yulp.compile(`
       datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
       return(0, datasize("Runtime"))
     }
-    object "Runtime" is "CoolBeans", "YesSir", "Another" {
+    object "Runtime" is "YesSir" {
       code {
         calldatacopy(0, 0, 36) // write calldata to memory
 

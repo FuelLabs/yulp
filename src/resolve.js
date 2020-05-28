@@ -91,8 +91,11 @@ var grammar = {
               const includeit = arr => {
                 arr.map(a => {
                   if (includes.indexOf(a) === -1) {
-                    includes.push(a);
                     includeit(objects[a].extends);
+        
+                    if (includes.indexOf(a) === -1) {
+                      includes.push(a);
+                    }
                   }
                 });
               };
