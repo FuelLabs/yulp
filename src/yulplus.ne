@@ -456,7 +456,8 @@ function ${name + '.position'}(pos) -> _offset {
 
 Yul -> (_ Chunk):* _ {% function(d) { return d; } %}
 Chunk -> ObjectDefinition | CodeDefinition {% function(d) { return d; } %}
-ObjectDefinition -> %objectKeyword _ %StringLiteral _ "{" ( _ objectStatement):* _ "}"
+ObjectList -> %StringLiteral (_ "," _ %StringLiteral):* {% extractArray %}
+ObjectDefinition -> ((%objectKeyword _ %StringLiteral) | (%objectKeyword _ %StringLiteral _ "is" _ ObjectList)) _ "{" ( _ objectStatement):* _ "}"
 objectStatement -> CodeDefinition {% function(d) { return d[0]; } %}
   | DataDeclaration {% function(d) { return d[0]; } %}
   | ObjectDefinition {% function(d) { return d[0]; } %}
@@ -545,7 +546,6 @@ CodeDefinition -> %codeKeyword _ Block {%
       text: __methodToInclude[key],
       toString: () => __methodToInclude[key],
     })));
-
 
     return d;
   }

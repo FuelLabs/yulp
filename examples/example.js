@@ -1,16 +1,36 @@
 const yulp = require('../src/index');
 const source = yulp.compile(`
+
+  object "Another" {
+    code {
+      let boooo := 1
+    }
+  }
+
+  object "CoolBeans" {
+    code {
+      function yes() {}
+    }
+  }
+
+  object "YesSir" is "CoolBeans", "Another" {
+    code {
+      let b := 2
+      function no() {}
+    }
+  }
+
   object "SimpleStore" {
     code {
       datacopy(0, dataoffset("Runtime"), datasize("Runtime"))
       return(0, datasize("Runtime"))
     }
-    object "Runtime" {
+    object "Runtime" is "CoolBeans", "YesSir", "Another" {
       code {
         calldatacopy(0, 0, 36) // write calldata to memory
 
         mstruct Something(
-          val: 32
+          val: 32,
           someArr.length: 12,
           someArr: [10]
         )

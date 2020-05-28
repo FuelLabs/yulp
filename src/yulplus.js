@@ -463,10 +463,18 @@ var grammar = {
     {"name": "Yul", "symbols": ["Yul$ebnf$1", "_"], "postprocess": function(d) { return d; }},
     {"name": "Chunk", "symbols": ["ObjectDefinition"]},
     {"name": "Chunk", "symbols": ["CodeDefinition"], "postprocess": function(d) { return d; }},
+    {"name": "ObjectList$ebnf$1", "symbols": []},
+    {"name": "ObjectList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
+    {"name": "ObjectList$ebnf$1", "symbols": ["ObjectList$ebnf$1", "ObjectList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "ObjectList", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "ObjectList$ebnf$1"], "postprocess": extractArray},
+    {"name": "ObjectDefinition$subexpression$1$subexpression$1", "symbols": [(lexer.has("objectKeyword") ? {type: "objectKeyword"} : objectKeyword), "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
+    {"name": "ObjectDefinition$subexpression$1", "symbols": ["ObjectDefinition$subexpression$1$subexpression$1"]},
+    {"name": "ObjectDefinition$subexpression$1$subexpression$2", "symbols": [(lexer.has("objectKeyword") ? {type: "objectKeyword"} : objectKeyword), "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "_", {"literal":"is"}, "_", "ObjectList"]},
+    {"name": "ObjectDefinition$subexpression$1", "symbols": ["ObjectDefinition$subexpression$1$subexpression$2"]},
     {"name": "ObjectDefinition$ebnf$1", "symbols": []},
     {"name": "ObjectDefinition$ebnf$1$subexpression$1", "symbols": ["_", "objectStatement"]},
     {"name": "ObjectDefinition$ebnf$1", "symbols": ["ObjectDefinition$ebnf$1", "ObjectDefinition$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "ObjectDefinition", "symbols": [(lexer.has("objectKeyword") ? {type: "objectKeyword"} : objectKeyword), "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "_", {"literal":"{"}, "ObjectDefinition$ebnf$1", "_", {"literal":"}"}]},
+    {"name": "ObjectDefinition", "symbols": ["ObjectDefinition$subexpression$1", "_", {"literal":"{"}, "ObjectDefinition$ebnf$1", "_", {"literal":"}"}]},
     {"name": "objectStatement", "symbols": ["CodeDefinition"], "postprocess": function(d) { return d[0]; }},
     {"name": "objectStatement", "symbols": ["DataDeclaration"], "postprocess": function(d) { return d[0]; }},
     {"name": "objectStatement", "symbols": ["ObjectDefinition"], "postprocess": function(d) { return d[0]; }},
@@ -557,7 +565,6 @@ var grammar = {
             text: __methodToInclude[key],
             toString: () => __methodToInclude[key],
           })));
-        
         
           return d;
         }

@@ -1,4 +1,5 @@
 const nearley = require("nearley");
+const Resolve = require('./resolve');
 const Yulp = require('./yulplus');
 const Yul = require('./yul');
 const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
@@ -38,19 +39,26 @@ function _filter(arr, kind, prop = 'type', stopKind = 'Nothing') {
     });
 }
 
+const unique = arr => [...(new Set(arr))];
+
 // Export parser
 module.exports = {
   nearley,
   Yulp,
   compile: source => {
+    const parserR = new nearley.Parser(Resolve);
+    const resolved = parserR.feed(source);
+
     const parser = new nearley.Parser(Yulp);
-    const result = parser.feed(source);
+    const result = parser.feed(print(resolved.results));
 
     const signatures = _filter(result.results, true, 'isSignature')
+      .filter((v,i,a)=>a.findIndex(t=>(t.value === v.value))===i)
       .map(v => ({ abi: v.signature, signature: v.value }));
     const errors = _filter(result.results, true, 'isError')
       .reduce((acc, v) => Object.assign(acc, { [v.message]: v.hash, [v.hash]: v.message }), {});
     const topics = _filter(result.results, true, 'isTopic')
+      .filter((v,i,a)=>a.findIndex(t=>(t.value === v.value))===i)
       .map(v => ({ abi: v.topic, topic: v.value }));
 
     result.signatures = signatures;
