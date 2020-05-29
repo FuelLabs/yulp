@@ -57,5 +57,5 @@ const source = yulp.compile(`
     }
   }
   `, fs, './examples');
-
+  
 console.log(yulp.print(source.results));

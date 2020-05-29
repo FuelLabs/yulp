@@ -22,7 +22,7 @@ function flatDeep(input) {
   return res.reverse();
 }
 
-function _filter(arr, kind, prop = 'type', stopKind = 'Nothing') {
+function __filter(arr, kind, prop = 'type', stopKind = 'Nothing') {
   var isStopKind = false;
 
   return flatDeep(arr, 10000000)
@@ -88,6 +88,7 @@ module.exports = {
   compile: (source, fs, base = '') => {
     let result = null;
     const parserR = new nearley.Parser(Resolve);
+    const parser = new nearley.Parser(Yulp);
 
     if (fs) {
       let resolvedFiles = [];
@@ -112,21 +113,19 @@ module.exports = {
       const src = resolveFiles(source);
       const res = resolvedFiles.map(v => resolvedImports[v]).join('') + src;
       const resolved = parserR.feed(res);
-      const parser = new nearley.Parser(Yulp);
       result = parser.feed(print(resolved.results));
     } else {
       // no fs
       const resolved = parserR.feed(source);
-      const parser = new nearley.Parser(Yulp);
       result = parser.feed(print(resolved.results));
     }
 
-    const signatures = _filter(result.results, true, 'isSignature')
-      .filter((v,i,a)=>a.findIndex(t=>(t.value === v.value))===i)
+    const signatures = __filter(result.results, true, 'isSignature')
+      .filter((v,i,a)=>a.findIndex(t=>(t.value === v.value)) === i)
       .map(v => ({ abi: v.signature, signature: v.value }));
-    const errors = _filter(result.results, true, 'isError')
+    const errors = __filter(result.results, true, 'isError')
       .reduce((acc, v) => Object.assign(acc, { [v.message]: v.hash, [v.hash]: v.message }), {});
-    const topics = _filter(result.results, true, 'isTopic')
+    const topics = __filter(result.results, true, 'isTopic')
       .filter((v,i,a)=>a.findIndex(t=>(t.value === v.value))===i)
       .map(v => ({ abi: v.topic, topic: v.value }));
 

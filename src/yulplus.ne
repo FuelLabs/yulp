@@ -791,6 +791,7 @@ ErrorLiteral -> %ErrorLiteral {%
 SigLiteral -> %SigLiteral {%
   function(d) {
     const sig = stringToSig(d[0].value.trim().slice(4).slice(0, -1)); // remove sig" and "
+
     return { type: 'HexNumber',
       isSignature: true,
       signature: d[0].value.trim(),
