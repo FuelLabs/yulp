@@ -111,13 +111,27 @@ module.exports = {
       };
 
       const src = resolveFiles(source);
-      const res = resolvedFiles.map(v => resolvedImports[v]).join('') + src;
+      const res = resolvedFiles.map(v => resolvedImports[v]).join('') + ' ' + src;
       const resolved = parserR.feed(res);
-      result = parser.feed(print(resolved.results));
+      const target = mapDeep(_filter(resolved.results, 'BaseObject').slice(-1)[0].object, d => {
+        if (d.type === 'ParsedObject') {
+          d.value = print(d.d);
+        }
+        return d;
+      });
+
+      result = parser.feed(print(target));
     } else {
       // no fs
       const resolved = parserR.feed(source);
-      result = parser.feed(print(resolved.results));
+
+      const target = mapDeep(_filter(resolved.results, 'BaseObject').slice(-1)[0].object, d => {
+        if (d.type === 'ParsedObject') {
+          d.value = print(d.d);
+        }
+        return d;
+      });
+      result = parser.feed(print(target));
     }
 
     const signatures = __filter(result.results, true, 'isSignature')

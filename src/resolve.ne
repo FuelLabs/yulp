@@ -1,4 +1,7 @@
 @{%
+
+  // needs to comment out the other files
+
   const moo = require('moo')
   const { utils } = require('ethers');
   const clone = require('rfdc')() // Returns the deep copy function
@@ -103,12 +106,21 @@ Page -> Yul {% function(d) {
     return v;
   });
 } %}
-Yul -> (_ Chunk):* _ {% function(d) { return d; } %}
-Chunk -> ObjectDefinition | CodeDefinition | ImportStatement {% function(d) { return d; } %}
+Yul -> (_ Chunk):* _ {% function (d) {
+  return d;
+} %}
+Chunk -> (ObjectDefinition | ImportStatement) {% function(d) {
+  if (d[0][0][0]) {
+    if (d[0][0][0].type === 'ParsedObject') {
+      d[0][0][0].type = 'BaseObject';
+    }
+  }
+
+  return d;
+} %}
 Imports -> %StringLiteral (_ "," _ %StringLiteral):* {% function (d) { return d; } %}
 ImportStatement -> "import" _ %StringLiteral {% function(d) {
   const file = d[2].value.slice(1, -1);
-
   return {
     value: '',
     text: '',
@@ -133,11 +145,10 @@ ObjectDefinition -> ((%objectKeyword _ %StringLiteral)
   | (%objectKeyword _ %StringLiteral _ ObjectIs _ ObjectList)) _ "{" ( _ objectStatement):* _ "}" {%
   function (d) {
     let obj = null;
-
     const _extends = _filter(d[0][0], 'ObjectExtends').map(v => v.name);
     const name = _filter(d[0][0], 'StringLiteral')[0].value.slice(1, -1);
 
-    return mapDeep(d, m => {
+    const _object = mapDeep(d, m => {
       if (obj === null && m.isCodeBlock) {
         m.objectName = name;
         m.objectExtends = _extends;
@@ -146,6 +157,15 @@ ObjectDefinition -> ((%objectKeyword _ %StringLiteral)
 
       return m;
     });
+
+    return [{
+      value: '',
+      text: '',
+      object: d,
+      name,
+      extends: _extends,
+      type: 'ParsedObject',
+    }].concat(d);
   }
 %}
 objectStatement -> CodeDefinition

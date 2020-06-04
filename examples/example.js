@@ -28,34 +28,21 @@ const source = yulp.compile(`
 
         mstruct Something(
           val: 32,
-          someArr.length: 12,
-          someArr: [10]
+          someArr1.length: 12,
+          someArr1: [10],
+          john2: 10,
+          someArr2.length: 12,
+          someArr2: [10],
+          cool1: 20,
+          someArr3.length: 12,
+          someArr3: [10]
         )
 
-        mstruct Calldata(
-          cool: 1,
-          sig: Something,
-          sig2: Something,
-          val: 32
-        )
-
-        let chunkA := add(pos, 33)
-        let chunkB := add(12, mul(10, mslice(chunkA, 12)))
-        let finalPos := add(chunkA, chunkB)
-
-        switch Calldata.sig2.position(0) // select signature from memory
-
-        case sig"function store(uint256 val)" { // new signature method
-          sstore(0, Calldata.val(0)) // sstore calldata value
-        }
-
-        case sig"function get() returns (uint256)" {
-          mstore(100, sload(0))
-          return (100, 32)
-        }
+        Something.cool1(0)
+        Something.someArr3(0)
       }
     }
   }
   `, fs, './examples');
-  
+
 console.log(yulp.print(source.results));

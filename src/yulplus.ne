@@ -178,9 +178,7 @@
       const v = vals[i];
       const isInt = Number.isInteger(v);
 
-      if (v.type === 'HexLiteral'
-        || v.type === 'NumberLiteral'
-        || isInt) {
+      if (v.type === 'HexLiteral' || v.type === 'NumberLiteral' || isInt) {
         if (isInt) {
           cummulativeValue = cummulativeValue.add(utils.bigNumberify(v));
         } else {
@@ -204,6 +202,58 @@
       .concat(['0'])
       .concat(Array(_vals.length).fill(')'))
       .join('');
+  }
+
+
+  function addValues2(vals, _name) {
+    let cummulativeValue = utils.bigNumberify(0);
+    let _vals = [0];
+
+    for (let i = 0; i < vals.length; i++) {
+      const v = vals[i];
+      const isInt = Number.isInteger(v);
+
+      if (v.type === 'HexLiteral' || v.type === 'NumberLiteral' || isInt) {
+        if (isInt) {
+          cummulativeValue = cummulativeValue.add(utils.bigNumberify(v));
+        } else {
+          cummulativeValue = cummulativeValue.add(v.value);
+        }
+      } else {
+        _vals.push(v);
+      }
+    }
+
+    _vals[0] = {
+      type: 'HexLiteral',
+      value: cummulativeValue.toHexString(),
+      text: cummulativeValue.toHexString(),
+      toString: () => cummulativeValue.toHexString(),
+    };
+
+    const chunks = _vals.map(v => v.value || v);
+    const blobs = chunks.map((blob, b) => {
+      for (let c = chunks.length; c >= 0; c--) {
+        const chunk = chunks[c];
+        if (blob.indexOf(chunk) !== -1 && chunk !== blob) {
+          return blob.replace(chunk, `${_name}._chunk${c}(pos)`);
+        }
+      }
+      return blob;
+    });
+
+    return `
+      ${blobs.map((v, i) => `
+        function ${_name}._chunk${i}(pos) -> __r {
+          __r := ${v}
+        }
+      `).join('')}
+
+      _offset := ${_vals.map((v, i) => `add(${_name}._chunk${i}(_pos), `)
+      .concat(['0'])
+      .concat(Array(_vals.length).fill(')'))
+      .join('')}
+    `;
   }
 
   const gte = `
@@ -357,9 +407,9 @@ function ${name + '.' + v.name + '.keccak256'}(pos) -> _hash {
       },
       [name + '.' + v.name + '.position']: {
         method: `
-function ${name + '.' + v.name + '.position'}(pos) -> _offset {
-  _offset := ${addValues([pos].concat(methodList.slice(0, i)
-    .map(name => acc[name].size)))}
+function ${name + '.' + v.name + '.position'}(_pos) -> _offset {
+  ${addValues2([pos].concat(methodList.slice(0, i)
+    .map(name => acc[name].size)), name + '.' + v.name + '.position')}
 }
 `,
         required: posRequired.concat(...methodList.slice(0, i)
@@ -894,9 +944,6 @@ StructIdentifier -> %Identifier {% id %}
 IdentifierList -> %Identifier (_ "," _ %Identifier):* {% extractArray %}
 MemoryStructIdentifier -> %Identifier _ ":" _ ( StructIdentifier | NumericLiteral | ArraySpecifier ) {%
   function (d) {
-    // check memory struct nuermic literal or identifier
-    // const size = utils.bigNumberify(d[4][0].value);
-
     return {
       type: 'MemoryStructIdentifier',
       name: d[0].value,

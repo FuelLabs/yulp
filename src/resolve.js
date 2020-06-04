@@ -3,6 +3,9 @@
 (function () {
 function id(x) { return x[0]; }
 
+
+  // needs to comment out the other files
+
   const moo = require('moo')
   const { utils } = require('ethers');
   const clone = require('rfdc')() // Returns the deep copy function
@@ -109,17 +112,26 @@ var grammar = {
     {"name": "Yul$ebnf$1", "symbols": []},
     {"name": "Yul$ebnf$1$subexpression$1", "symbols": ["_", "Chunk"]},
     {"name": "Yul$ebnf$1", "symbols": ["Yul$ebnf$1", "Yul$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "Yul", "symbols": ["Yul$ebnf$1", "_"], "postprocess": function(d) { return d; }},
-    {"name": "Chunk", "symbols": ["ObjectDefinition"]},
-    {"name": "Chunk", "symbols": ["CodeDefinition"]},
-    {"name": "Chunk", "symbols": ["ImportStatement"], "postprocess": function(d) { return d; }},
+    {"name": "Yul", "symbols": ["Yul$ebnf$1", "_"], "postprocess":  function (d) {
+          return d;
+        } },
+    {"name": "Chunk$subexpression$1", "symbols": ["ObjectDefinition"]},
+    {"name": "Chunk$subexpression$1", "symbols": ["ImportStatement"]},
+    {"name": "Chunk", "symbols": ["Chunk$subexpression$1"], "postprocess":  function(d) {
+          if (d[0][0][0]) {
+            if (d[0][0][0].type === 'ParsedObject') {
+              d[0][0][0].type = 'BaseObject';
+            }
+          }
+        
+          return d;
+        } },
     {"name": "Imports$ebnf$1", "symbols": []},
     {"name": "Imports$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)]},
     {"name": "Imports$ebnf$1", "symbols": ["Imports$ebnf$1", "Imports$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "Imports", "symbols": [(lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral), "Imports$ebnf$1"], "postprocess": function (d) { return d; }},
     {"name": "ImportStatement", "symbols": [{"literal":"import"}, "_", (lexer.has("StringLiteral") ? {type: "StringLiteral"} : StringLiteral)], "postprocess":  function(d) {
           const file = d[2].value.slice(1, -1);
-        
           return {
             value: '',
             text: '',
@@ -153,11 +165,10 @@ var grammar = {
     {"name": "ObjectDefinition", "symbols": ["ObjectDefinition$subexpression$1", "_", {"literal":"{"}, "ObjectDefinition$ebnf$1", "_", {"literal":"}"}], "postprocess": 
         function (d) {
           let obj = null;
-        
           const _extends = _filter(d[0][0], 'ObjectExtends').map(v => v.name);
           const name = _filter(d[0][0], 'StringLiteral')[0].value.slice(1, -1);
         
-          return mapDeep(d, m => {
+          const _object = mapDeep(d, m => {
             if (obj === null && m.isCodeBlock) {
               m.objectName = name;
               m.objectExtends = _extends;
@@ -166,6 +177,15 @@ var grammar = {
         
             return m;
           });
+        
+          return [{
+            value: '',
+            text: '',
+            object: d,
+            name,
+            extends: _extends,
+            type: 'ParsedObject',
+          }].concat(d);
         }
         },
     {"name": "objectStatement", "symbols": ["CodeDefinition"]},
