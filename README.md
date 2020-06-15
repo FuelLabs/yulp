@@ -196,6 +196,39 @@ In-memory array like structures are defined using a `name.length` property, foll
 
 Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
 
+## Inheritance
+
+```js
+object "Utils" {
+  code {
+    const Size := 1
+
+    function someMethod() -> {}
+  }
+}
+
+object "SimpleStore" is "Utils" {
+  code {
+    mstore(0, Size)
+    someMethod()
+  }
+}
+```
+
+## Imports
+
+We now support basic file system usage, we don't support local path resolution just yet.
+
+The `fs` object is simply supplied at `compile`: `yulp.compile(source, fs)`.
+
+```js
+import "./Utils.yulp"
+
+object "SimpleStore" is "Utils" {
+  ...
+}
+```
+
 ## Error Reporting
 
 A new experimental (post v0.0.7) feature is the `error"some message"` literal.
