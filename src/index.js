@@ -124,7 +124,6 @@ module.exports = {
     } else {
       // no fs
       const resolved = parserR.feed(source);
-
       const target = mapDeep(_filter(resolved.results, 'BaseObject').slice(-1)[0].object, d => {
         if (d.type === 'ParsedObject') {
           d.value = print(d.d);

@@ -224,8 +224,8 @@ object "contract" {
       anotherArray.length: 32,
       anotherArray: [2],
       ethereumBlockNumber: 32,
-      transactionRoots.length: 32,
-      transactionRoots: [4]
+      roots.length: 32,
+      roots: [4]
     )
 
     BlockHeader.blockProducer(400) // will return 0xaa
@@ -289,7 +289,7 @@ mstruct BasicRecursiveStructures ( // better structure description
 
 mstruct SwitchStatements ( // special switch case
   data.switch: 1, // switch 0, 1, 2 for options below
-  data: [TransactionInputUTXO,TransactionInputHTLC,TransactionDeposit]
+  data: [InputUTXO,InputHTLC,TransactionDeposit]
 )
 
 mstruct FixedLengthArrays ( // special switch case

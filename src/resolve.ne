@@ -69,9 +69,32 @@
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")", '[', ']'],
     ConstIdentifier: /(?:const)(?:\s)/,
-    keyword: ['code ', 'let', "for", "function", "enum", "mstruct", "if", "else", "break", "continue", "default", "switch", "case"],
+    AddressInternalType: /(?:address)(?!\(|[a-zA-Z0-9])/,
+    UintInternalType: /(?:uint)(?:[0-9]{1,3})(?!\(|[a-zA-Z])/,
+    BytesInternalType: /(?:bytes)(?:[0-9]{1,3})(?!\(|[a-zA-Z])/,
+    InternalType: ["memPtr"],
+    keyword: ['code ', 'let', "for", "function", "enum",
+      "mstruct", "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
+
+  function typeToSize(type) {
+    let size = 0;
+
+    if (type.indexOf("address") !== -1) {
+      return { type: 'NumberLiteral', value: "20", text: "20", toString: () => "20" };
+    }
+
+    if (type.indexOf("uint") !== -1) {
+      const value = String(parseInt(type.replace('uint', '').trim(), 10) / 8);
+      return { type: 'NumberLiteral', value: value, text: value, toString: () => value };
+    }
+
+    if (type.indexOf("bytes") !== -1) {
+      const value = String(parseInt(type.replace('bytes', '').trim(), 10));
+      return { type: 'NumberLiteral', value: value, text: value, toString: () => value };
+    }
+  }
 
   let objects = {};
 %}
@@ -221,13 +244,19 @@ Expression -> Literal
   | %Identifier
   | FunctionCall
   | Boolean
+InternalType -> (%AddressInternalType | %BytesInternalType | %UintInternalType) {%
+  function (d) {
+    return typeToSize(d[0][0].value);
+  }
+%}
 ExpressionList -> "(" _ Expression ( _ "," _ Expression):* _ ")"
 FunctionCall -> %Identifier _ ExpressionList
   | %Identifier _ "(" _ ")"
-ArraySpecifier -> "[" _ NumericLiteral _ "]"
+ArraySize -> InternalType | NumericLiteral
+ArraySpecifier -> "[" _ ArraySize _ "]"
 StructIdentifier -> %Identifier
 IdentifierList -> %Identifier (_ "," _ %Identifier):*
-MemoryStructIdentifier -> %Identifier _ ":" _ ( StructIdentifier | NumericLiteral | ArraySpecifier )
+MemoryStructIdentifier -> %Identifier _ ":" _ ( InternalType | StructIdentifier | NumericLiteral | ArraySpecifier )
 MemoryStructList -> MemoryStructIdentifier (_ "," _ MemoryStructIdentifier):*
 MemoryStructDeclaration -> "mstruct" _ %Identifier _ "(" _ ")"
   | "mstruct" _ %Identifier _ "(" _ MemoryStructList _ ")"

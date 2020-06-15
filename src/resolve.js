@@ -73,9 +73,32 @@ function id(x) { return x[0]; }
     boolean: ["true", "false"],
     bracket: ["{", "}", "(", ")", '[', ']'],
     ConstIdentifier: /(?:const)(?:\s)/,
-    keyword: ['code ', 'let', "for", "function", "enum", "mstruct", "if", "else", "break", "continue", "default", "switch", "case"],
+    AddressInternalType: /(?:address)(?!\(|[a-zA-Z0-9])/,
+    UintInternalType: /(?:uint)(?:[0-9]{1,3})(?!\(|[a-zA-Z])/,
+    BytesInternalType: /(?:bytes)(?:[0-9]{1,3})(?!\(|[a-zA-Z])/,
+    InternalType: ["memPtr"],
+    keyword: ['code ', 'let', "for", "function", "enum",
+      "mstruct", "if", "else", "break", "continue", "default", "switch", "case"],
     Identifier: /[\w.]+/,
   });
+
+  function typeToSize(type) {
+    let size = 0;
+
+    if (type.indexOf("address") !== -1) {
+      return { type: 'NumberLiteral', value: "20", text: "20", toString: () => "20" };
+    }
+
+    if (type.indexOf("uint") !== -1) {
+      const value = String(parseInt(type.replace('uint', '').trim(), 10) / 8);
+      return { type: 'NumberLiteral', value: value, text: value, toString: () => value };
+    }
+
+    if (type.indexOf("bytes") !== -1) {
+      const value = String(parseInt(type.replace('bytes', '').trim(), 10));
+      return { type: 'NumberLiteral', value: value, text: value, toString: () => value };
+    }
+  }
 
   let objects = {};
 var grammar = {
@@ -258,18 +281,29 @@ var grammar = {
     {"name": "Expression", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
     {"name": "Expression", "symbols": ["FunctionCall"]},
     {"name": "Expression", "symbols": ["Boolean"]},
+    {"name": "InternalType$subexpression$1", "symbols": [(lexer.has("AddressInternalType") ? {type: "AddressInternalType"} : AddressInternalType)]},
+    {"name": "InternalType$subexpression$1", "symbols": [(lexer.has("BytesInternalType") ? {type: "BytesInternalType"} : BytesInternalType)]},
+    {"name": "InternalType$subexpression$1", "symbols": [(lexer.has("UintInternalType") ? {type: "UintInternalType"} : UintInternalType)]},
+    {"name": "InternalType", "symbols": ["InternalType$subexpression$1"], "postprocess": 
+        function (d) {
+          return typeToSize(d[0][0].value);
+        }
+        },
     {"name": "ExpressionList$ebnf$1", "symbols": []},
     {"name": "ExpressionList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", "Expression"]},
     {"name": "ExpressionList$ebnf$1", "symbols": ["ExpressionList$ebnf$1", "ExpressionList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "ExpressionList", "symbols": [{"literal":"("}, "_", "Expression", "ExpressionList$ebnf$1", "_", {"literal":")"}]},
     {"name": "FunctionCall", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", "ExpressionList"]},
     {"name": "FunctionCall", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "_", {"literal":"("}, "_", {"literal":")"}]},
-    {"name": "ArraySpecifier", "symbols": [{"literal":"["}, "_", "NumericLiteral", "_", {"literal":"]"}]},
+    {"name": "ArraySize", "symbols": ["InternalType"]},
+    {"name": "ArraySize", "symbols": ["NumericLiteral"]},
+    {"name": "ArraySpecifier", "symbols": [{"literal":"["}, "_", "ArraySize", "_", {"literal":"]"}]},
     {"name": "StructIdentifier", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
     {"name": "IdentifierList$ebnf$1", "symbols": []},
     {"name": "IdentifierList$ebnf$1$subexpression$1", "symbols": ["_", {"literal":","}, "_", (lexer.has("Identifier") ? {type: "Identifier"} : Identifier)]},
     {"name": "IdentifierList$ebnf$1", "symbols": ["IdentifierList$ebnf$1", "IdentifierList$ebnf$1$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "IdentifierList", "symbols": [(lexer.has("Identifier") ? {type: "Identifier"} : Identifier), "IdentifierList$ebnf$1"]},
+    {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["InternalType"]},
     {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["StructIdentifier"]},
     {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["NumericLiteral"]},
     {"name": "MemoryStructIdentifier$subexpression$1", "symbols": ["ArraySpecifier"]},

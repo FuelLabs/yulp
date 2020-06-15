@@ -27,18 +27,20 @@ const source = yulp.compile(`
         calldatacopy(0, 0, 36) // write calldata to memory
 
         mstruct Something(
-          val: 32,
-          someArr1.length: 12,
-          someArr1: [10],
-          john2: 10,
-          someArr2.length: 12,
+          val: uint64,
+          someArr1.length: bytes12,
+          someArr1: [uint256],
+          john2: address,
+          someArr2.length: bytes12,
           someArr2: [10],
-          cool1: 20,
-          someArr3.length: 12,
-          someArr3: [10]
+          cool1: address,
+          someArr3.length: bytes12,
+          someArr3: [bytes10]
         )
 
-        Something.cool1(0)
+        let address45 := 22
+
+        Something.cool1(address())
         Something.someArr3(0)
       }
     }

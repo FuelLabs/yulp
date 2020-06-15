@@ -57,11 +57,7 @@ const actions = {
       yulpResult = yulp.print(yulp.compile(editor.getValue()).results);
     } catch (yulpErrors) {
       yulpError = [yulpErrors];
-
-      console.log(yulpError);
     }
-
-    console.log(yulpResult);
 
     var output = JSON.parse(solc.compile(JSON.stringify({
       "language": "Yul",
