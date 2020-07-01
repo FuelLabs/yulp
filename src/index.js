@@ -94,6 +94,7 @@ module.exports = {
       let resolvedFiles = [];
       let resolvedImports = {};
       const path = require('path');
+
       const resolveFiles = src => {
         const imports = parseImports(src);
 
@@ -112,6 +113,10 @@ module.exports = {
 
       const src = resolveFiles(source);
       const res = resolvedFiles.map(v => resolvedImports[v]).join('') + ' ' + src;
+
+      // if error here, should return the whole section of code,
+      // try { resolved == } catch (line than pull from res that line..)
+
       const resolved = parserR.feed(res);
       const target = mapDeep(_filter(resolved.results, 'BaseObject').slice(-1)[0].object, d => {
         if (d.type === 'ParsedObject') {
@@ -119,6 +124,9 @@ module.exports = {
         }
         return d;
       });
+
+      // if error here, should return the whole section of code,
+      // try { resolved == } catch (line than pull from res that line..)
 
       result = parser.feed(print(target));
     } else {

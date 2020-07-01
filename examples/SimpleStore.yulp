@@ -12,10 +12,14 @@ object "SimpleStore" {
         val: 32
       )
 
+      require(0, error"nick")
+      require(311, error"nick")
+
       switch Calldata.sig(0) // select signature from memory
 
       case sig"function store(uint256 val)" { // new signature method
         sstore(0, Calldata.val(0)) // sstore calldata value
+        require(311, error"nick")
       }
 
       case sig"function get() returns (uint256)" {

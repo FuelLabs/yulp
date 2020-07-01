@@ -7,6 +7,7 @@ const source = yulp.compile(`
   object "CoolBeans" {
     code {
       function yes() {}
+      require(2, error"dd")
     }
   }
 
@@ -14,6 +15,7 @@ const source = yulp.compile(`
     code {
       let b := add(yes(), Nick.cool(0))
       function no() {}
+      require(2, error"dd")
     }
   }
 
@@ -42,9 +44,12 @@ const source = yulp.compile(`
 
         Something.cool1(address())
         Something.someArr3(0)
+
+        require(2, error"nick")
+        require(2, error"john")
       }
     }
   }
   `, fs, './examples');
 
-console.log(yulp.print(source.results));
+console.log(yulp.print(source.results), source);

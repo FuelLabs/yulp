@@ -9,6 +9,9 @@ function id(x) { return x[0]; }
 
   function id(x) { return x[0]; }
 
+  let errorNonce = 0;
+  let errorMap = {};
+
   const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
     .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
 
@@ -853,7 +856,17 @@ var grammar = {
     {"name": "ErrorLiteral", "symbols": [(lexer.has("ErrorLiteral") ? {type: "ErrorLiteral"} : ErrorLiteral)], "postprocess": 
         function(d) {
           const message = d[0].value.trim().slice(6).slice(0, -1);
-          const bytes4ErrorHash = utils.keccak256(utils.toUtf8Bytes(message)).slice(0, 10); // remove error" and "
+          let bytes4ErrorHash = null;
+        
+          if (errorMap[message]) {
+            bytes4ErrorHash = errorMap[message];
+          } else {
+            errorNonce += 1;
+            bytes4ErrorHash = utils.bigNumberify(errorNonce).toHexString();
+            errorMap[message] = bytes4ErrorHash;
+          }
+        
+          // const bytes4ErrorHash = utils.keccak256(utils.toUtf8Bytes(message)).slice(0, 10); // remove error" and "
           return { type: 'HexNumber',
             isError: true,
             hash: bytes4ErrorHash,
