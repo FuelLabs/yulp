@@ -1,5 +1,6 @@
 # Yul+
 
+![Node.js CI](https://github.com/FuelLabs/yulp/workflows/Node.js%20CI/badge.svg)
 [![npm version](https://badge.fury.io/js/yulp.svg)](https://badge.fury.io/js/yulp)
 
 A low-level, highly efficient extension to Yul, an intermediate smart-contract language for the Ethereum Virtual Machine.
