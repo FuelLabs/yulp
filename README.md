@@ -19,7 +19,6 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 
 ## Coming Soon
 - Static typing
-- Import/export of objects, code, and data
 - CLI support
 
 ## Install

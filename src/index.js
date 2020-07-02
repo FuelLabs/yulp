@@ -132,12 +132,14 @@ module.exports = {
     } else {
       // no fs
       const resolved = parserR.feed(source);
-      const target = mapDeep(_filter(resolved.results, 'BaseObject').slice(-1)[0].object, d => {
+
+      const base = _filter(resolved.results, 'BaseObject');
+      const target = base.length ? mapDeep(base.slice(-1)[0].object, d => {
         if (d.type === 'ParsedObject') {
           d.value = print(d.d);
         }
         return d;
-      });
+      }) : [];
       result = parser.feed(print(target));
     }
 

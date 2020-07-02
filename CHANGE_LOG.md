@@ -103,3 +103,9 @@ require(eq(1, 1), error"one-not-one")
 ```
 
 4. `mstruct` stack optimizations
+
+## 0.1.0 -- Small Updates and Upgrades
+
+- error hashes are now using a counting nonce (saves many bytes), same error code security
+- some mstruct tuning
+- updated testing
