@@ -1,4 +1,5 @@
-# Yul+
+Yul+
+===
 
 ![Node.js CI](https://github.com/FuelLabs/yulp/workflows/Node.js%20CI/badge.svg)
 [![npm version](https://badge.fury.io/js/yulp.svg)](https://badge.fury.io/js/yulp)
@@ -7,7 +8,7 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 
 [Try it Now!](https://yulp.fuel.sh)
 
-## Features
+# Features
 - All existing Yul features
 - Memory structures (`mstruct`)
 - Enums (`enum`)
@@ -17,17 +18,27 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Safe math (over/under flow protection for addition, subtraction, multiplication)
 - Injected methods (`mslice` and `require`)
 
-## Coming Soon
+# Coming Soon
 - Static typing
 - CLI support
 
-## Install
+# Installing
 
 ```sh
-npm install -g yulp
+npm install yulp
 ```
 
-## Library Usage
+# Building From Source
+
+```sh
+npm install
+npm run build
+npm test
+```
+
+# Library Usage
+
+## Code Example
 
 ```js
 const yulp = require('../index');
@@ -280,11 +291,10 @@ object "contract" {
 }
 ```
 
-## Help out
+# Helping Out
 
 There is always a lot of work to do, and will have many rules to maintain. So please help out in any way that you can:
 
-- Create, enhance, and debug fuel-core rules (see our guide to ["Working on rules"](./.github/CONTRIBUTING.md)).
 - Improve documentation.
 - Chime in on any open issue or pull request.
 - Open new issues about your ideas for making `yulp` better, and pull requests to show us how your idea works.
@@ -294,22 +304,17 @@ There is always a lot of work to do, and will have many rules to maintain. So pl
 
 We communicate via [issues](https://github.com/fuellabs/yulp/issues) and [pull requests](https://github.com/fuellabs/yulp/pulls).
 
-## Important documents
-
-- [Changelog](CHANGE_LOG.md)
-- [License](https://raw.githubusercontent.com/fuellabs/yulp/master/LICENSE)
-
-## Donate
+# Donating
 
 Please consider donating if you think Yul+ is helpful to you or that my work is valuable. We are happy if you can help us buy a cup of coffee. ❤️
 
-- [Gitcoin](https://gitcoin.co/grants/199/fuel-labs)
+- [Gitcoin grant page](https://gitcoin.co/grants/199/fuel-labs)
 
 Or just send us some *Dai*, *USDC* or *Ether*:
 
-**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C** [Etherscan](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
+- [**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C**](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
 
-## Coming Soon
+# Coming Soon
 
 ```js
 mstruct BasicRecursiveStructures ( // better structure description
