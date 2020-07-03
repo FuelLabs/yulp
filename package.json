@@ -9,8 +9,9 @@
     "build-browser": "parcel build browser/index.html && cp browser_config/now.json dist/now.json",
     "test": "npm run build && node ./src/index.test.js",
     "build-resolve": "nearleyc src/resolve.ne -o src/resolve.js",
-    "build": "npm run build-resolve && nearleyc src/yulplus.ne -o src/yulplus.js",
-    "build-yul": "nearleyc src/yul.ne -o src/yul.js"
+    "build-yul": "nearleyc src/yul.ne -o src/yul.js",
+    "build-yulplus": "nearleyc src/yulplus.ne -o src/yulplus.js",
+    "build": "npm run build-resolve && npm run build-yul && npm run build-yulplus"
   },
   "author": "Nick Dodson <nick.dodson@fuel.sh>",
   "license": "Apache-2.0",
