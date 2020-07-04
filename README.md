@@ -1,5 +1,4 @@
-Yul+
-===
+# Yul+
 
 ![Node.js CI](https://github.com/FuelLabs/yulp/workflows/Node.js%20CI/badge.svg)
 [![npm version](https://badge.fury.io/js/yulp.svg)](https://badge.fury.io/js/yulp)
@@ -8,7 +7,7 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 
 [Try it Now!](https://yulp.fuel.sh)
 
-# Features
+## Features
 - All existing Yul features
 - Memory structures (`mstruct`)
 - Enums (`enum`)
@@ -18,17 +17,17 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Safe math (over/under flow protection for addition, subtraction, multiplication)
 - Injected methods (`mslice` and `require`)
 
-# Coming Soon
+## Coming Soon
 - Static typing
 - CLI support
 
-# Installing
+## Installing
 
 ```sh
 npm install yulp
 ```
 
-# Building From Source
+## Building From Source
 
 ```sh
 npm install
@@ -36,9 +35,9 @@ npm run build
 npm test
 ```
 
-# Library Usage
+## Library Usage
 
-## Code Example
+### Code Example
 
 ```js
 const yulp = require('../index');
@@ -78,7 +77,7 @@ object "SimpleStore" {
 console.log(yulp.print(source.results));
 ```
 
-## Enums
+### Enums
 
 Here we have a fully featured `enum` identifier which acts as a constant.
 
@@ -96,7 +95,7 @@ object "contract" {
 }
 ```
 
-## Constants
+### Constants
 
 `const` will define a `let` variable value that cannot be re-assigned.
 
@@ -109,7 +108,7 @@ object "contract" {
 }
 ```
 
-## Memory Slice
+### Memory Slice
 
 `mslice(position, length)` will return a 1-32 byte value from memory.
 
@@ -123,7 +122,7 @@ object "contract" {
 }
 ```
 
-## Booleans
+### Booleans
 
 `true` and `false` are added and equate to values `0x01` and `0x00`.
 
@@ -137,7 +136,7 @@ object "contract" {
 }
 ```
 
-## Multi mstore sugar
+### Multi mstore sugar
 
 `mstore` can now be used as a proxy method
 
@@ -156,7 +155,7 @@ object "contract" {
 }
 ```
 
-## Comparison Methods
+### Comparison Methods
 
 `lte`, `gte`, `neq` can now be used.
 
@@ -166,7 +165,7 @@ if and(lte(1, 10), gte(5, 2)) {
 }
 ```
 
-## MAX_UINT
+### MAX_UINT
 
 `MAX_UINT` literal is now available (i.e. `uint(-1)`)
 
@@ -176,7 +175,7 @@ if lt(v, MAX_UINT) {
 }
 ```
 
-## Ethereum Standard ABI Signature and Topic Generation
+### Ethereum Standard ABI Signature and Topic Generation
 
 `sig" [ method abi ] "` will equate to a 4 byte method signature hex value
 
@@ -195,7 +194,7 @@ object "contract" {
 }
 ```
 
-## Memory Structures
+### Memory Structures
 
 Memory structures enable better handling of pre-existing in-memory structures.
 
@@ -207,7 +206,7 @@ In-memory array like structures are defined using a `name.length` property, foll
 
 Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
 
-## Inheritance
+### Inheritance
 
 ```js
 object "Utils" {
@@ -226,7 +225,7 @@ object "SimpleStore" is "Utils" {
 }
 ```
 
-## Imports
+### Imports
 
 We now support basic file system usage, we don't support local path resolution just yet.
 
@@ -240,7 +239,7 @@ object "SimpleStore" is "Utils" {
 }
 ```
 
-## Error Reporting
+### Error Reporting
 
 A new experimental (post v0.0.7) feature is the `error"some message"` literal.
 
@@ -291,7 +290,7 @@ object "contract" {
 }
 ```
 
-# Helping Out
+## Helping Out
 
 There is always a lot of work to do, and will have many rules to maintain. So please help out in any way that you can:
 
@@ -304,7 +303,7 @@ There is always a lot of work to do, and will have many rules to maintain. So pl
 
 We communicate via [issues](https://github.com/fuellabs/yulp/issues) and [pull requests](https://github.com/fuellabs/yulp/pulls).
 
-# Donating
+## Donating
 
 Please consider donating if you think Yul+ is helpful to you or that my work is valuable. We are happy if you can help us buy a cup of coffee. ❤️
 
@@ -314,7 +313,7 @@ Or just send us some *Dai*, *USDC* or *Ether*:
 
 - [**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C**](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
 
-# Coming Soon
+## Coming Soon
 
 ```js
 mstruct BasicRecursiveStructures ( // better structure description
@@ -334,3 +333,4 @@ mstruct FixedLengthArrays ( // special switch case
   someArr: (7)[32],
 )
 ```
+
