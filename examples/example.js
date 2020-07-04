@@ -1,6 +1,7 @@
-const yulp = require('../src/index');
-const fs = require('fs');
-const source = yulp.compile(`
+const yulp = require("../src/index");
+const fs = require("fs");
+const source = yulp.compile(
+  `
   import "./another.yulp"
   import "./cool.yulp"
 
@@ -50,6 +51,9 @@ const source = yulp.compile(`
       }
     }
   }
-  `, fs, './examples');
+  `,
+  fs,
+  "./examples"
+);
 
 console.log(yulp.print(source.results), source);
