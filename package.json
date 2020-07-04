@@ -13,7 +13,8 @@
     "build-yul": "npm run make-gen-dir && nearleyc src/yul.ne -o src/gen/yul.js",
     "build-yulplus": "npm run make-gen-dir && nearleyc src/yulplus.ne -o src/gen/yulplus.js",
     "build": "npm run build-resolve && npm run build-yul && npm run build-yulplus",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "format": "prettier --write \"{examples,src}/**/*.js\""
   },
   "author": "Nick Dodson <nick.dodson@fuel.sh>",
   "license": "Apache-2.0",
