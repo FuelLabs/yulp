@@ -720,12 +720,24 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
             + mstructs[requiredMethodName].method
             + "\n";
 
-          getRequired(mstructs[requiredMethodName].required);
+          for (var i = 0; i < mstructs[requiredMethodName].required.length; i++) {
+            const reqName = mstructs[requiredMethodName].required[i];
+            const req = methodToInclude[reqName];
+            if (typeof req === 'undefined') {
+              getRequired([reqName]);
+            }
+          }
         }
       };
 
       // get required..
-      getRequired(mstructs[v.name].required);
+      for (var i = 0; i < mstructs[v.name].required.length; i++) {
+        const reqName = mstructs[v.name].required[i];
+        const req = methodToInclude[reqName];
+        if (typeof req === 'undefined') {
+          getRequired([reqName]);
+        }
+      }
     }
 
     if (v.type === 'FunctionCallIdentifier'
