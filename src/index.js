@@ -1,7 +1,7 @@
 const nearley = require("nearley");
-const Resolve = require('./resolve');
-const Yulp = require('./yulplus');
-const Yul = require('./yul');
+const Resolve = require('./gen/resolve');
+const Yulp = require('./gen/yulplus');
+const Yul = require('./gen/yul');
 const print = (v, isArr = Array.isArray(v)) => (isArr ? v : [v])
   .map(v => Array.isArray(v) ? print(v) : (!v ? '' : v.value)).join('');
 
