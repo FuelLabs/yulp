@@ -52,4 +52,6 @@ const source = yulp.compile(`
   }
   `, fs, './examples');
 
-console.log(yulp.print(source.results), source);
+const yulOutput = yulp.print(source.results);
+
+console.log(yulOutput);
