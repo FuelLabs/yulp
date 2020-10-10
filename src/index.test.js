@@ -149,6 +149,18 @@ test('yulp should be yul', t => {
   t.equal(print(compile(` object "SimpleStore" { code { const nick := 0 } } `).results),
     `object \"SimpleStore\" { code {  } }`, 'const');
 
+  t.equal(print(compile(` object "SimpleStore" { code { const nick := unsafeAdd(1, 2) } } `).results),
+    `object \"SimpleStore\" { code { let nick := add(1, 2) } }`, 'unsafe add');
+
+  t.equal(print(compile(` object "SimpleStore" { code { const nick := unsafeDiv(1, 2) } } `).results),
+    `object \"SimpleStore\" { code { let nick := div(1, 2) } }`, 'unsafe div');
+
+  t.equal(print(compile(` object "SimpleStore" { code { const nick := unsafeMul(1, 2) } } `).results),
+    `object \"SimpleStore\" { code { let nick := mul(1, 2) } }`, 'unsafe mul');
+
+    t.equal(print(compile(` object "SimpleStore" { code { const nick := unsafeSub(1, 2) } } `).results),
+    `object \"SimpleStore\" { code { let nick := sub(1, 2) } }`, 'unsafe sub');
+
   t.equal(print(compile(` object "SimpleStore" { code { require(0, error"nick") require(1, error"john") } } `).results),
     `object \"SimpleStore\" { code {\nfunction require(arg, message) {\n  if lt(arg, 1) {\n    mstore(0, message)\n    revert(0, 32)\n  }\n}\n require(0, 0x01) require(1, 0x02) } }`, 'const');
 

@@ -769,6 +769,27 @@ Block -> "{" _ Statement (_ Statement):* _ "}" {% function(d, l) {
     }
 
     if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'unsafeMul') {
+      v.text = 'mul';
+      v.value = 'mul';
+      v.toString = () => 'mul';
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'unsafeDiv') {
+      v.text = 'div';
+      v.value = 'div';
+      v.toString = () => 'div';
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
+      && v.name === 'unsafeSub') {
+      v.text = 'sub';
+      v.value = 'sub';
+      v.toString = () => 'sub';
+    }
+
+    if (v.type === 'FunctionCallIdentifier'
       && v.name === 'add'
       && !v.noSafeMath) {
       v.text = 'safeAdd';
