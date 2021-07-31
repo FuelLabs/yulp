@@ -50,7 +50,7 @@ object "SimpleStore" {
       switch StoreCalldata.sig(0) // select signature from memory (at position 0)
 
       case sig"function store(uint256 val)" { // new signature method
-        sstore(0, StoreCalldata.val(0)) // sstore calldata value
+        sstore(0, StoreCalldata.val(0)) // store calldata value
         log2(0, 0, topic"event Store(uint256 value)", StoreCalldata.val(0))
       }
 
