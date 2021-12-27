@@ -288,7 +288,7 @@ function mslice(position, length) -> result {
 
   const requireMethod = `
 function require(arg, message) {
-  if lt(arg, 1) {
+  if iszero(eq(arg, 1)) {
     mstore(0, message)
     revert(0, 32)
   }
