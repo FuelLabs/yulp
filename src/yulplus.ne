@@ -261,16 +261,12 @@
 
   const gte = `
   function gte(x, y) -> result {
-    if or(gt(x, y), eq(x, y)) {
-      result := 0x01
-    }
+    result := iszero(lt(x, y))
   }
   `;
   const lte = `
   function lte(x, y) -> result {
-    if or(lt(x, y), eq(x, y)) {
-      result := 0x01
-    }
+    result := iszero(gt(x, y))
   }
   `;
   const neq = `
