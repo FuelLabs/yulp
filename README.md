@@ -21,13 +21,23 @@ A low-level, highly efficient extension to Yul, an intermediate smart-contract l
 - Static typing
 - CLI support
 
-## Install
+## Installing
 
 ```sh
-npm install -g yulp
+npm install yulp
+```
+
+## Building From Source
+
+```sh
+npm install
+npm run build
+npm test
 ```
 
 ## Library Usage
+
+### Code Example
 
 ```js
 const yulp = require('../index');
@@ -67,7 +77,7 @@ object "SimpleStore" {
 console.log(yulp.print(source.results));
 ```
 
-## Enums
+### Enums
 
 Here we have a fully featured `enum` identifier which acts as a constant.
 
@@ -85,7 +95,7 @@ object "contract" {
 }
 ```
 
-## Constants
+### Constants
 
 `const` will define a `let` variable value that cannot be re-assigned.
 
@@ -98,7 +108,7 @@ object "contract" {
 }
 ```
 
-## Memory Slice
+### Memory Slice
 
 `mslice(position, length)` will return a 1-32 byte value from memory.
 
@@ -112,7 +122,7 @@ object "contract" {
 }
 ```
 
-## Booleans
+### Booleans
 
 `true` and `false` are added and equate to values `0x01` and `0x00`.
 
@@ -126,7 +136,7 @@ object "contract" {
 }
 ```
 
-## Multi mstore sugar
+### Multi mstore sugar
 
 `mstore` can now be used as a proxy method
 
@@ -145,7 +155,7 @@ object "contract" {
 }
 ```
 
-## Comparison Methods
+### Comparison Methods
 
 `lte`, `gte`, `neq` can now be used.
 
@@ -155,7 +165,7 @@ if and(lte(1, 10), gte(5, 2)) {
 }
 ```
 
-## MAX_UINT
+### MAX_UINT
 
 `MAX_UINT` literal is now available (i.e. `uint(-1)`)
 
@@ -165,7 +175,7 @@ if lt(v, MAX_UINT) {
 }
 ```
 
-## Ethereum Standard ABI Signature and Topic Generation
+### Ethereum Standard ABI Signature and Topic Generation
 
 `sig" [ method abi ] "` will equate to a 4 byte method signature hex value
 
@@ -184,7 +194,7 @@ object "contract" {
 }
 ```
 
-## Memory Structures
+### Memory Structures
 
 Memory structures enable better handling of pre-existing in-memory structures.
 
@@ -196,7 +206,7 @@ In-memory array like structures are defined using a `name.length` property, foll
 
 Note, `mstruct` properties allow for data chunk sizes up to 32 bytes only.
 
-## Inheritance
+### Inheritance
 
 ```js
 object "Utils" {
@@ -215,7 +225,7 @@ object "SimpleStore" is "Utils" {
 }
 ```
 
-## Imports
+### Imports
 
 We now support basic file system usage, we don't support local path resolution just yet.
 
@@ -229,7 +239,7 @@ object "SimpleStore" is "Utils" {
 }
 ```
 
-## Error Reporting
+### Error Reporting
 
 A new experimental (post v0.0.7) feature is the `error"some message"` literal.
 
@@ -280,11 +290,10 @@ object "contract" {
 }
 ```
 
-## Help out
+## Helping Out
 
 There is always a lot of work to do, and will have many rules to maintain. So please help out in any way that you can:
 
-- Create, enhance, and debug fuel-core rules (see our guide to ["Working on rules"](./.github/CONTRIBUTING.md)).
 - Improve documentation.
 - Chime in on any open issue or pull request.
 - Open new issues about your ideas for making `yulp` better, and pull requests to show us how your idea works.
@@ -294,20 +303,15 @@ There is always a lot of work to do, and will have many rules to maintain. So pl
 
 We communicate via [issues](https://github.com/fuellabs/yulp/issues) and [pull requests](https://github.com/fuellabs/yulp/pulls).
 
-## Important documents
-
-- [Changelog](CHANGE_LOG.md)
-- [License](https://raw.githubusercontent.com/fuellabs/yulp/master/LICENSE)
-
-## Donate
+## Donating
 
 Please consider donating if you think Yul+ is helpful to you or that my work is valuable. We are happy if you can help us buy a cup of coffee. ❤️
 
-- [Gitcoin](https://gitcoin.co/grants/199/fuel-labs)
+- [Gitcoin grant page](https://gitcoin.co/grants/199/fuel-labs)
 
 Or just send us some *Dai*, *USDC* or *Ether*:
 
-**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C** [Etherscan](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
+- [**0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C**](https://etherscan.io/address/0x3e947a271a37Ae7B59921c57be0a3246Ee0d887C)
 
 ## Coming Soon
 
@@ -329,3 +333,4 @@ mstruct FixedLengthArrays ( // special switch case
   someArr: (7)[32],
 )
 ```
+
